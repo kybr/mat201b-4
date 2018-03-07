@@ -23,7 +23,6 @@
 
 #include "allocore/io/al_App.hpp"
 #include "Gamma/Oscillator.h"
-#include "allocore/io/al_App.hpp"
 #include "allocore/math/al_Ray.hpp"
 #include "allocore/math/al_Vec.hpp"
 
@@ -58,6 +57,9 @@ struct Comet {
   Vec3f position,velocity,acceleration;
   float abs_speed, unit_rotate, force, head, head_angv;
   Color ton;
+  Mesh m;
+  Texture texture;
+  Image image; 
   Comet() {
     position = Vec3d(0,0,0);
     head = 0;
@@ -65,6 +67,19 @@ struct Comet {
     ton = HSV(0.5, 0.2, 1);
     unit_rotate = 0.01;
     force = 1;
+    addSphereWithTexcoords(m);
+    initWindow();
+    SearchPaths searchPaths;
+//    searchPaths.addSearchPath("../media");
+    searchPaths.addSearchPath("/home/ben/Desktop/work/AlloSystem/mat201b/ben");
+    string filename = searchPaths.find("test.png").filepath();
+    if (image.load(filename)) {
+      cout << "Read image from " << filename << endl;
+    } else {
+      cout << "Failed to read image from " << filename << "!!!" << endl;
+      exit(-1);
+    }
+    texture.allocate(image.array());
   }
   void draw(Graphics& g) {
     g.pushMatrix();
@@ -87,6 +102,7 @@ struct Comet {
 struct Planet {
   Vec3f position;
   Color ton;
+
   Planet() {
     position = r() * planetRange;
   	ton = HSV(rnd::uniform(), 0.7, 1);
