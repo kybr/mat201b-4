@@ -1,8 +1,5 @@
 // Ben . 2018.02.21. Agent ver.0.01
 // Press t,f,g,h to control the center of the agent(core)
-// Press '5' to re-center the camera
-// Still working with the orientation of the each planet
-
 
 #include "allocore/io/al_App.hpp"
 #include "Gamma/Oscillator.h"
