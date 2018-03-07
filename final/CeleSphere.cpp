@@ -1,7 +1,8 @@
 
 
-// Ben . 2018.02.21. Agent ver.0.01
-// Press t,f,g,h to control the center of the agent(core)
+// Ben . 2018.03.05. Agent ver.0.01
+// Press t,f,g,h to control the Comet
+
 /*  Copyright 2018 [Myungin Lee]
 
    Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,7 +58,7 @@ struct Comet {
   Vec3f position,velocity,acceleration;
   float abs_speed, unit_rotate, force, head, head_angv;
   Color ton;
-  Mesh m;
+  Mesh comet;
   Texture texture;
   Image image; 
   Comet() {
@@ -65,10 +66,9 @@ struct Comet {
     head = 0;
     head_angv = 0;
     ton = HSV(0.5, 0.2, 1);
-    unit_rotate = 0.01;
-    force = 1;
-    addSphereWithTexcoords(m);
-    initWindow();
+    unit_rotate = 0.02;
+    force = 0.1;
+    addSphereWithTexcoords(comet);
     SearchPaths searchPaths;
 //    searchPaths.addSearchPath("../media");
     searchPaths.addSearchPath("/home/ben/Desktop/work/AlloSystem/mat201b/ben");
@@ -83,9 +83,12 @@ struct Comet {
   }
   void draw(Graphics& g) {
     g.pushMatrix();
+    g.scale(30);
     g.translate(position);
-    g.color(ton);
+    g.rotate(head*180/M_PI,0,1,0);
+    texture.bind();
     g.draw(comet);
+    texture.unbind();
     g.popMatrix();
     head_angv *= 0.95;
     head += head_angv * timeStep;
@@ -144,15 +147,12 @@ struct MyApp : App {
   Comet c;
   Stardust d;
   vector<Planet> planets;
-  vector<Comet> acomet;
   vector<Stardust> dusts;
 
   MyApp() {
-    addSphere(comet, cometRadius);
     addSphere(planet, planetRadius);
     addSphere(dust, dustRadius);
 
-    comet.generateNormals();
     planet.generateNormals();
     dust.generateNormals();
 
@@ -162,7 +162,6 @@ struct MyApp : App {
     lens().far(400);                 // set the far clipping plane
     planets.resize(planetCount);  // make all the planets
     dusts.resize(dustCount);  // make all the planets
-    acomet.resize(1); 		     // make a comet
 
     background(Color(0.07));  
 
@@ -172,6 +171,8 @@ struct MyApp : App {
 
   void onAnimate(double dt) {	
     Pose pose;
+    Nav nav;
+    Light light;
     Graphics g;
     if (!simulate)      // skip the rest of this function
       return;
@@ -181,12 +182,13 @@ struct MyApp : App {
     c.acceleration += c.velocity * -dragFactor;
     c.position += c.velocity * timeStep;
     c.abs_speed = sqrt( c.velocity[0] * c.velocity[0] + c.velocity[2] * c.velocity[2]);
-    camera_position[0] = c.position.x - (c.velocity[0] / c.abs_speed) * 0.01 * timeStep;
-    camera_position[1] = c.position.y - 10;
-    camera_position[2] = c.position.z - (c.velocity[2] / c.abs_speed) *0.01* timeStep;
-
- //   nav().nudgeToward(camera_position , 1);             // place the viewer
-//   	pose.faceToward(c.velocity,1);
+    camera_position[0] = c.position.x + (c.velocity[0] / c.abs_speed) * 0.01;
+    camera_position[1] = c.position.y ;
+    camera_position[2] = c.position.z + (c.velocity[2] / c.abs_speed) *0.01;
+  cout << c.position << "," << camera_position <<"," << c.head << endl;
+    nav.faceToward(c.position , 1);             // place the viewer
+    nav.nudgeToward(camera_position);  // Face toward the comet
+    light.pos(c.position);
     frameCount++;
   }
 
@@ -218,7 +220,7 @@ struct MyApp : App {
     }
     if (keys[2]) c.head_angv -= c.unit_rotate;
     if (keys[3]) c.head_angv += c.unit_rotate;
-    cout << c.head << endl; 
+ //   cout << c.head << endl; 
   }
 
 
@@ -243,8 +245,7 @@ struct MyApp : App {
         break;
       case '5':
 	// Follow the core
-        nav().nudgeToward(c.position, 1); 	
-        Pose().faceToward(c.position, 1);
+
     	break;
       case 't':
         keys[0] = true;
