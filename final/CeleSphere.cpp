@@ -1,6 +1,6 @@
 
 
-// Ben . 2018.03.05. Agent ver.0.01
+// Ben . 2018.03.05. CeleSphere ver.0.01
 // Press t,f,g,h to control the Comet
 
 /*  Copyright 2018 [Myungin Lee]
@@ -17,7 +17,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
    
-	This program code contains creative work of game "AlloComet."
+	This program code contains creative work of game "CeleSphere."
   */
 
 
@@ -45,12 +45,15 @@ float steerFactor = 100;
 // Dust const.
 unsigned dustCount = 300;       
 float dustRange = 1000;
-float dustRadius = 1;
+float dustRadius1 = 0.5;
+float dustRadius2 = 1;
 
 bool keys[4];
 Mesh comet; 
 Mesh planet;
-Mesh dust;  
+Mesh dust1;  
+Mesh dust2;  
+
 // helper function: makes a random vector
 Vec3d r() { return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()); }
 
@@ -92,12 +95,12 @@ struct Comet {
     g.popMatrix();
     head_angv *= 0.95;
     head += head_angv * timeStep;
-    if (head > 2*M_PI) {
+    /*if (head > 2*M_PI) {
       head -= 2*M_PI;
     }
     if (head < 0) {
       head += 2*M_PI;
-    }
+    }*/
   }
 };
 
@@ -119,10 +122,10 @@ struct Planet {
   }
 };
 
-struct Stardust {
+struct Stardust1 {
   Vec3f position;
   Color ton;
-  Stardust() {
+  Stardust1() {
     position = r() * dustRange;
   	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
   }
@@ -130,11 +133,26 @@ struct Stardust {
 	g.pushMatrix();
 	g.translate(position);
 	g.color(ton);
-	g.draw(dust);
+	g.draw(dust1);
 	g.popMatrix();
  }
 };
 
+struct Stardust2 {
+  Vec3f position;
+  Color ton;
+  Stardust2() {
+    position = r() * dustRange;
+  	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
+  }
+ void draw(Graphics& g) {
+	g.pushMatrix();
+	g.translate(position);
+	g.color(ton);
+	g.draw(dust2);
+	g.popMatrix();
+ }
+};
 
 struct MyApp : App {
   Material material;
@@ -145,60 +163,86 @@ struct MyApp : App {
   unsigned frameCount = 0;
   Planet p;
   Comet c;
-  Stardust d;
+  Stardust1 d1;
+  Stardust2 d2;
   vector<Planet> planets;
-  vector<Stardust> dusts;
+  vector<Stardust1> dusts1;
+  vector<Stardust2> dusts2;
 
   MyApp() {
+    Pose pose;
+    Nav nav;
+    Light light;
+    Graphics g;
     addSphere(planet, planetRadius);
-    addSphere(dust, dustRadius);
+    addSphere(dust1, dustRadius1);
+    addSphere(dust1, dustRadius2);
+//		add(new StandardWindowKeyControls);
+//		add(new NavInputControl(nav));
 
     planet.generateNormals();
-    dust.generateNormals();
+    dust1.generateNormals();
+    dust2.generateNormals();
 
 
-    light.pos(0, 0, 10);              // place the light
-    nav().pos(0, 0, 100);             // place the viewer
+//    light.pos(0, 0, 10);              // place the light
+    nav.pos(0, 0, -100);             // place the viewer
     lens().far(400);                 // set the far clipping plane
     planets.resize(planetCount);  // make all the planets
-    dusts.resize(dustCount);  // make all the planets
+    dusts1.resize(dustCount);  // make all the planets
 
-    background(Color(0.07));  
+    background(Color(0.07));
+
+  //  nav.faceToward(c.position , 1);             // place the viewer
+  // nav.nudgeToward(camera_position);  // Face toward the comet
+  //  light.pos(c.position);
+
 
     initWindow();
     initAudio();
   }
 
   void onAnimate(double dt) {	
-    Pose pose;
-    Nav nav;
+//    Pose pose;
+//    Nav nav;
     Light light;
+
     Graphics g;
     if (!simulate)      // skip the rest of this function
       return;
     
     // Euler's Method; Keep the time step small
-    d.position += c.velocity * timeStep * 0.7;
+    d1.position += c.velocity * timeStep * 0.7;
+    d2.position += c.velocity * timeStep * 0.2;
+
     c.acceleration += c.velocity * -dragFactor;
     c.position += c.velocity * timeStep;
     c.abs_speed = sqrt( c.velocity[0] * c.velocity[0] + c.velocity[2] * c.velocity[2]);
-    camera_position[0] = c.position.x + (c.velocity[0] / c.abs_speed) * 0.01;
+    camera_position[0] = c.position.x - ( cos(c.head) *10 ) ;
     camera_position[1] = c.position.y ;
-    camera_position[2] = c.position.z + (c.velocity[2] / c.abs_speed) *0.01;
-  cout << c.position << "," << camera_position <<"," << c.head << endl;
-    nav.faceToward(c.position , 1);             // place the viewer
-    nav.nudgeToward(camera_position);  // Face toward the comet
+    camera_position[2] = c.position.z - ( sin(c.head) *10 );
+    cout << c.position << "," << camera_position <<"," << c.head << endl;
+
+    g.pushMatrix();
+    nav().faceToward(c.position , 1);             // place the viewer
+    nav().pos(camera_position);  // Face toward the comet
     light.pos(c.position);
+    g.popMatrix();
+
+
     frameCount++;
   }
 
-  void onDraw(Graphics& g) {
+  void onDraw(Graphics& g) {    
     material();
     light();
     g.scale(scaleFactor);
     c.draw(g);
     for (auto p : planets) p.draw(g);
-    for (auto d : dusts) d.draw(g);
+    for (auto d : dusts1) d.draw(g);
+    for (auto d : dusts2) d.draw(g);
+
+
     keyCommand();
   }
 
