@@ -6,6 +6,8 @@ using namespace al;
 
 // Common definition of application state
 //
+#define NUM_GRAINS (20)  // How many grains we want
+
 struct State {
   Vec3f ball_position;
 };
