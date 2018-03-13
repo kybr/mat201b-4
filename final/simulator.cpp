@@ -98,6 +98,8 @@ struct Comet : Pose {
 };
 struct Planet : Pose {
   Mesh planet;
+  Vec3f vector_to_comet;
+  float distance_to_comet;
   Planet (){
         // Planet texture
     if (!image.load(fullPathOrDie("comet.jpg"))) {
@@ -136,23 +138,52 @@ struct Constellation {
 };
  
  struct Dust : Pose {
+
+	Texture spriteTex;
   Vec3f position;
   Color ton;
-  Dust() {
-  	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
+  Dust() :  spriteTex(16,16, Graphics::LUMINANCE, Graphics::FLOAT) {
+  //	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
+
+		// Create a Gaussian "bump" function to use for the sprite
+		int Nx = spriteTex.width();
+		int Ny = spriteTex.height();
+		float * pixels = spriteTex.data<float>();
+
+		for(int j=0; j<Ny; ++j){ float y = float(j)/(Ny-1)*2-1;
+		for(int i=0; i<Nx; ++i){ float x = float(i)/(Nx-1)*2-1;
+			float m = exp(-3*(x*x + y*y));
+			pixels[j*Nx + i] = m;
+     }
+    }
   }
  void draw(Graphics& g) {
-	g.pushMatrix();
+	// Tell GPU to render a screen-aligned textured quad at each vertex
+	glEnable(GL_POINT_SPRITE);
+	glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
+ 	g.pushMatrix();
+
+	// Setting the point size sets the sprite size
+	g.pointSize(40);
+	// Enable blending to hide texture edges
+	g.blendAdd();
+
+	// We must bind our sprite texture before drawing the points
+	spriteTex.bind();
+
   g.scale(scaleFactor);
 	g.translate(pos());
-	g.color(ton);
+//	g.color(ton);
 	g.draw(dust);
+	spriteTex.unbind();
+
+	glDisable(GL_POINT_SPRITE);
   g.scale(1/scaleFactor);
 	g.popMatrix();
  }
 };
 
-struct AlloApp : App , osc::PacketHandler {
+struct AlloApp : App, osc::PacketHandler {
   bool simulate = true;
   Light light;
   Comet c;
@@ -183,7 +214,7 @@ struct AlloApp : App , osc::PacketHandler {
     addSphereWithTexcoords(backMesh, 500);
     addSphere(constell);
     addSphere(planetMesh);
-    addSphere(dust);
+    dust.primitive(Graphics::POINTS);
 
     backMesh.generateNormals();
     planetMesh.generateNormals();
@@ -198,16 +229,22 @@ struct AlloApp : App , osc::PacketHandler {
     dusts.resize(dustCount);  // make all the dusts
     constellation.resize(stellCount);
 
+
+
     for (auto& d : dusts) {
       d.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
-      d.pos() *= rnd::uniform(200.0, 200.0);
+      d.pos() *= rnd::uniform(-1000.0, 1000.0);
+      //d.vertex(pos());
     }
     for (auto& p : planet) {
       p.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
-      p.pos() *= rnd::uniform(200.0, 200.0);
+      p.pos() *= rnd::uniform(800.0, 800.0);
       p.quat() = Quatd(rnd::uniformS(), rnd::uniformS(), rnd::uniformS(),
                        rnd::uniformS());
       p.quat().normalize();
+      p.vector_to_comet = c.pos() - p.pos();
+      p.distance_to_comet = p.vector_to_comet.mag();
+
     }
 
     // OSC Receiver
@@ -255,6 +292,22 @@ struct AlloApp : App , osc::PacketHandler {
     light();  // turns lighting back on
 
 
+  }
+
+  void onSound(AudioIO& io) {
+    Planet p;
+    gam::Sync::master().spu(audioIO().fps());
+    while (io()) {
+      if (timer()) {
+        // sined.set(rnd::uniform(220.0f, 880.0f), 0.5f, 1.0f);
+//        for(int i=0 ; i < planetCount; i++){
+          sined.set(500.0f - p.distance_to_comet * 6, 0.5f, 1.0f);
+//        }
+      }
+      float s = sined();
+      io.out(0) = s;
+      io.out(1) = s;
+    }
   }
 
   void onMessage(osc::Message& m) {
