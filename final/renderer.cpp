@@ -1,6 +1,6 @@
 // MAT201B
-// Fall 2015
-// Author: Karl Yerkes
+// Winter 2018
+// Author: Ben Myungin Lee.
 //
 // Cuttlebone "Laptop Graphics Renderer"
 //

@@ -21,6 +21,7 @@
   */
 
 
+//#include omnistreo stuff
 
 #include "allocore/io/al_App.hpp"
 #include "Gamma/Oscillator.h"
@@ -35,7 +36,7 @@ using namespace std;
 float maximumAcceleration = 5;  // prevents explosion, loss of planets
 float dragFactor = 0.1;           //
 float timeStep = 0.1;        // keys change this value for effect
-float scaleFactor = 0.1;          // resizes the entire scene
+float scaleFactor = 0.02;          // resizes the entire scene
 // Planet const.
 int planetCount = 23;
 float planetRadius = 20;  // 
@@ -65,11 +66,11 @@ Vec3d r() { return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()); }
 
 string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
-  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/media/ben";
+  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/media/";
   searchPaths.addSearchPath(whereToLook);
   string filePath = searchPaths.find(fileName).filepath();
   if (filePath == "") {
-    fprintf(stderr, "FAIL\n");
+    fprintf(stderr, "FAIL2\n");
     exit(1);
   }
   return filePath;
@@ -83,7 +84,7 @@ struct Comet : Pose {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
-    addSphereWithTexcoords(comet);
+    addSphereWithTexcoords(comet, 999);
     cometTexture.allocate(image.array());
   }
   void onDraw(Graphics& g) {
@@ -91,7 +92,9 @@ struct Comet : Pose {
     g.translate(pos());
     g.rotate(quat());
     cometTexture.bind();
+    g.scale(scaleFactor);
     g.draw(comet);
+    g.scale(1/scaleFactor);
     cometTexture.unbind();
     g.popMatrix();
   }
@@ -106,16 +109,16 @@ struct Planet : Pose {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
-    addSphereWithTexcoords(planet);
+    addSphereWithTexcoords(planet, 10);
     cometTexture.allocate(image.array());
   }
   void onDraw(Graphics& g) {
     g.pushMatrix();
-    g.scale(scaleFactor);
+//    g.scale(scaleFactor);
     g.translate(pos());
     g.rotate(quat());
     g.draw(planetMesh);
-    g.scale(1 / scaleFactor);
+//    g.scale(1 / scaleFactor);
     g.popMatrix();
   }
 };
@@ -138,53 +141,24 @@ struct Constellation {
 };
  
  struct Dust : Pose {
-
-	Texture spriteTex;
   Vec3f position;
   Color ton;
-  Dust() :  spriteTex(16,16, Graphics::LUMINANCE, Graphics::FLOAT) {
-  //	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
+  Mesh dust;
 
-		// Create a Gaussian "bump" function to use for the sprite
-		int Nx = spriteTex.width();
-		int Ny = spriteTex.height();
-		float * pixels = spriteTex.data<float>();
-
-		for(int j=0; j<Ny; ++j){ float y = float(j)/(Ny-1)*2-1;
-		for(int i=0; i<Nx; ++i){ float x = float(i)/(Nx-1)*2-1;
-			float m = exp(-3*(x*x + y*y));
-			pixels[j*Nx + i] = m;
-     }
-    }
-  }
  void draw(Graphics& g) {
-	// Tell GPU to render a screen-aligned textured quad at each vertex
-	glEnable(GL_POINT_SPRITE);
-	glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
  	g.pushMatrix();
-
-	// Setting the point size sets the sprite size
-	g.pointSize(40);
-	// Enable blending to hide texture edges
-	g.blendAdd();
-
-	// We must bind our sprite texture before drawing the points
-	spriteTex.bind();
-
-  g.scale(scaleFactor);
+//  g.scale(scaleFactor);
 	g.translate(pos());
 //	g.color(ton);
 	g.draw(dust);
-	spriteTex.unbind();
-
-	glDisable(GL_POINT_SPRITE);
-  g.scale(1/scaleFactor);
+//  g.scale(1/scaleFactor);
 	g.popMatrix();
  }
 };
 
 struct AlloApp : App, osc::PacketHandler {
   bool simulate = true;
+  Material material;
   Light light;
   Comet c;
   Constellation stell;
@@ -200,7 +174,7 @@ struct AlloApp : App, osc::PacketHandler {
 
   AlloApp() {
     // Background space texture
-    if (!image.load(fullPathOrDie("universe.jpg"))) {
+    if (!image.load(fullPathOrDie("universe.png"))) {
       fprintf(stderr, "FAIL\n");
       exit(1);
       cell_vel = Vec3f(0,0,0);
@@ -208,10 +182,7 @@ struct AlloApp : App, osc::PacketHandler {
     }
     backTexture.allocate(image.array());
 
-    lens().near(0.1);
-    lens().far(500);
-
-    addSphereWithTexcoords(backMesh, 500);
+    addSphereWithTexcoords(backMesh, 999);
     addSphere(constell);
     addSphere(planetMesh);
     dust.primitive(Graphics::POINTS);
@@ -220,6 +191,9 @@ struct AlloApp : App, osc::PacketHandler {
     planetMesh.generateNormals();
     constell.generateNormals();
     dust.generateNormals();
+
+    lens().near(0.1);
+    lens().far(1000);
 
     initWindow();
     light.pos(0, 0, 100);
@@ -254,12 +228,15 @@ struct AlloApp : App, osc::PacketHandler {
   }
 
   void onAnimate(double dt) {
-    //
+    // cuttlebone::Taker<State> taker;
+  // State* stae = new State;
+    // taker.get(*state);
+    // nav. state->pose ????
     nav().faceToward(c);
     c.quat() = nav();
     Vec3f v = (c.pos() - nav());
     float d = v.mag();
-    c.pos() += (v / d) * (30 - d);
+    c.pos() += (v / d) * (300 - d);
   }
   void onDraw(Graphics& g) {
     g.lighting(false);
@@ -270,11 +247,18 @@ struct AlloApp : App, osc::PacketHandler {
     g.draw(backMesh);
     backTexture.unbind();
     g.popMatrix();
+
+    g.depthMask(true);
+    material();
+    light();  // turns lighting back on
+
 //    for (auto constell : constellation ) constell.draw(g);
+    g.scale(scaleFactor);
     for (auto d : dusts) d.draw(g);
+    g.scale(1 / scaleFactor);
+
 //    for (auto& p : planet) p.onDraw(g);
     c.onDraw(g);
-
   // OSC dynamics
     cell_vel.x += cell_acc.x;
     cell_vel.y += cell_acc.y;
@@ -287,9 +271,6 @@ struct AlloApp : App, osc::PacketHandler {
     cout.precision(6); 
     cout << cell_pos.z << endl;//<< cell_vel << cell_pos << endl;
     //
-
-    g.depthMask(true);
-    light();  // turns lighting back on
 
 
   }

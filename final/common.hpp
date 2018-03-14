@@ -1,5 +1,5 @@
-#ifndef __COMMON__
-#define __COMMON__
+#ifndef __BEN_COMMON__
+#define __BEN_COMMON__
 
 #include "allocore/io/al_App.hpp"
 using namespace al;
