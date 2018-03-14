@@ -66,7 +66,9 @@ Vec3d r() { return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()); }
 
 string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
-  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/media/";
+//  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/media";
+  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
+ // whereToLook = "../media/";
   searchPaths.addSearchPath(whereToLook);
   string filePath = searchPaths.find(fileName).filepath();
   if (filePath == "") {
@@ -84,7 +86,8 @@ struct Comet : Pose {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
-    addSphereWithTexcoords(comet, 999);
+    addSphereWithTexcoords(comet, 10);
+//    addSphereWithTexcoords(comet, 999);
     cometTexture.allocate(image.array());
   }
   void onDraw(Graphics& g) {
@@ -114,11 +117,11 @@ struct Planet : Pose {
   }
   void onDraw(Graphics& g) {
     g.pushMatrix();
-//    g.scale(scaleFactor);
+    g.scale(scaleFactor);
     g.translate(pos());
     g.rotate(quat());
     g.draw(planetMesh);
-//    g.scale(1 / scaleFactor);
+    g.scale(1 / scaleFactor);
     g.popMatrix();
   }
 };
@@ -174,7 +177,7 @@ struct AlloApp : App, osc::PacketHandler {
 
   AlloApp() {
     // Background space texture
-    if (!image.load(fullPathOrDie("universe.png"))) {
+    if (!image.load(fullPathOrDie("back.jpg"))) {
       fprintf(stderr, "FAIL\n");
       exit(1);
       cell_vel = Vec3f(0,0,0);
@@ -236,7 +239,7 @@ struct AlloApp : App, osc::PacketHandler {
     c.quat() = nav();
     Vec3f v = (c.pos() - nav());
     float d = v.mag();
-    c.pos() += (v / d) * (300 - d);
+    c.pos() += (v / d) * (10 - d);
   }
   void onDraw(Graphics& g) {
     g.lighting(false);
@@ -253,9 +256,9 @@ struct AlloApp : App, osc::PacketHandler {
     light();  // turns lighting back on
 
 //    for (auto constell : constellation ) constell.draw(g);
-    g.scale(scaleFactor);
+//    g.scale(scaleFactor);
     for (auto d : dusts) d.draw(g);
-    g.scale(1 / scaleFactor);
+//    g.scale(1 / scaleFactor);
 
 //    for (auto& p : planet) p.onDraw(g);
     c.onDraw(g);
