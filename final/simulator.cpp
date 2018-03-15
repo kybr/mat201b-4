@@ -41,7 +41,7 @@ float dragFactor = 0.1;           //
 float timeStep = 0.1;        // keys change this value for effect
 float scaleFactor = 0.05;          // resizes the entire scene
 // Planet const.
-int planetCount = 8;
+int planetCount = 9;
 float planetRadius = 20;  // 
 float planetRange = 500;
 
@@ -61,7 +61,7 @@ Image image;
 
 Mesh planetMesh, backMesh, dustMesh, constellMesh;
 Texture cometTexture, backTexture;
-Texture planetTexture[8];
+Texture planetTexture[9];
 
 string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
@@ -93,7 +93,7 @@ struct Comet : Pose {
   Mesh comet;
   Comet (){
         // Comet texture
-    if (!image.load(fullPathOrDie("comet.png"))) {
+    if (!image.load(fullPathOrDie("comet.jpg"))) {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
@@ -116,8 +116,6 @@ struct Comet : Pose {
 };
 struct Planet : Pose {
   Vec3f vector_to_comet;
-  float distance_to_comet;
-
 //    addSphereWithTexcoords(planet, 10);
 //    cometTexture.allocate(image.array());
   void onDraw(Graphics& g) {
@@ -173,6 +171,7 @@ struct AlloApp : App, osc::PacketHandler {
   vector<Planet> planetVect;
   vector<Constellation> constellVect;
   vector<Dust> dustVect;
+  float distance_to_comet[9];
 
   // Gamma
 	static const int Nc = 9; // # of chimes
@@ -244,7 +243,7 @@ struct AlloApp : App, osc::PacketHandler {
                        al::rnd::uniformS());
       p.quat().normalize();
       p.vector_to_comet = c.pos() - p.pos();
-      p.distance_to_comet = p.vector_to_comet.mag();
+      distance_to_comet[i] = p.vector_to_comet.mag();
       oss << "planet_" << i << ".jpg";
       string var = oss.str();
       if (!image.load(fullPathOrDie(var))) {
@@ -316,32 +315,36 @@ struct AlloApp : App, osc::PacketHandler {
   // Audio 
   void onSound(AudioIOData& io) {
     gam::Sync::master().spu(audioIO().fps());
+    float2 tmp;
     while (io()) {
-      if (timer()) {
-          static double freqs[Nc] = {
-					  scl::freq("c4"),
-					  scl::freq("f4"), scl::freq("g4"), scl::freq("a4"), scl::freq("d5"),
-					  scl::freq("f5"), scl::freq("g5"), scl::freq("a5"), scl::freq("d6"),
-				  };
+      for (int i = 0; i < planetCount; i++){
+        if (timer()) {
+            static double freqs[Nc] = {
+              scl::freq("c4"),
+              scl::freq("f4"), scl::freq("g4"), scl::freq("a4"), scl::freq("d5"),
+              scl::freq("f5"), scl::freq("g5"), scl::freq("a5"), scl::freq("d6"),
+            };
 
-				int i = gam::rnd::uni(Nc);
-				float f0 = freqs[i];
-				float A = gam::rnd::uni(0.1,1.);
+  //				int i = gam::rnd::uni(Nc);
+          float f0 = freqs[i];
+          float A = gam::rnd::uni(0.1,1.)* 100 / distance_to_comet[i];
 
-				//      osc #   frequency      amplitude               length
-				src.set(i*Nm+0, f0*1.000,      A*1.0*gam::rnd::uni(0.8,1.), 1600.0/f0);
-				src.set(i*Nm+1, f0*barFree(2), A*0.5*gam::rnd::uni(0.5,1.), 1200.0/f0);
-				src.set(i*Nm+2, f0*barFree(3), A*0.4*gam::rnd::uni(0.5,1.),  800.0/f0);
-				src.set(i*Nm+3, f0*barFree(4), A*0.3*gam::rnd::uni(0.5,1.),  400.0/f0);
-				src.set(i*Nm+4, f0*barFree(5), A*0.2*gam::rnd::uni(0.5,1.),  200.0/f0);
+          //      osc #   frequency      amplitude               length
+          src.set(i*Nm+0, f0*1.000,      A*1.0*gam::rnd::uni(0.8,1.), 1600.0/f0);
+          src.set(i*Nm+1, f0*barFree(2), A*0.5*gam::rnd::uni(0.5,1.), 1200.0/f0);
+          src.set(i*Nm+2, f0*barFree(3), A*0.4*gam::rnd::uni(0.5,1.),  800.0/f0);
+          src.set(i*Nm+3, f0*barFree(4), A*0.3*gam::rnd::uni(0.5,1.),  400.0/f0);
+          src.set(i*Nm+4, f0*barFree(5), A*0.2*gam::rnd::uni(0.5,1.),  200.0/f0);
 
-				timer.period(gam::rnd::uni(0.01,1.5));
+          timer.period(gam::rnd::uni(0.01,1.5));
+        }
+        tmp += src() ;
+
       }
-			
-      float2 s = src() * 0.1;
+      float2 s = tmp * 0.1;
 
-			s.x += chr1(s.x)*0.2;
-			s.y += chr2(s.y)*0.2;
+			s.x += chr1(s.x)*0.02;
+			s.y += chr2(s.y)*0.02;
 
 			io.out(0) = s.x;
 			io.out(1) = s.y;
