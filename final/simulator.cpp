@@ -25,9 +25,12 @@
 
 #include "allocore/io/al_App.hpp"
 #include "Gamma/Oscillator.h"
+#include "Gamma/Effects.h"
 #include "allocore/math/al_Ray.hpp"
 #include "allocore/math/al_Vec.hpp"
 #include "common.hpp"
+
+using namespace gam;
 
 using namespace al;
 using namespace std;
@@ -59,8 +62,6 @@ Image image;
 Mesh planetMesh, backMesh, dustMesh, constellMesh;
 Texture cometTexture, backTexture;
 Texture planetTexture[8];
-// Frequent function: makes a random 3d vector 
-Vec3d r() { return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()); }
 
 string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
@@ -76,7 +77,18 @@ string fullPathOrDie(string fileName, string whereToLook = ".") {
   }
   return filePath;
 }
+  // Sound Functions
+  // Returns frequency ratio of a mode of a bar clamped at one end
+float barClamp(float mode){
+  float res = mode - 0.5;
+  return 2.81f*res*res;
+}
 
+// Returns frequency ratio of a mode of a freely vibrating bar
+float barFree(float mode){
+  float res = mode + 0.5;
+  return 0.441f*res*res;
+}
 struct Comet : Pose {
   Mesh comet;
   Comet (){
@@ -121,8 +133,7 @@ struct Constellation : Pose {
   Vec3f position;
   Color ton;
   Constellation() {
-    position = r() * dustRange;
-  	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
+  	ton = HSV( al::rnd::uniform() * M_PI , 0.1, 1);
     int stellCount = 10;
   }
  void onDraw(Graphics& g) {
@@ -138,7 +149,7 @@ struct Constellation : Pose {
   Vec3f position;
   Color ton;
   Dust() {
-  	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
+  	ton = HSV( al::rnd::uniform() * M_PI , 0.1, 1);
   }
 
  void onDraw(Graphics& g) {
@@ -164,12 +175,22 @@ struct AlloApp : App, osc::PacketHandler {
   vector<Dust> dustVect;
 
   // Gamma
-  gam::SineD<> sined;
-  gam::Accum<> timer;
+	static const int Nc = 9; // # of chimes
+	static const int Nm = 5; // # of modes
+  SineDs<> src;
+	Accum<> timer;
+	Chorus<> chr1, chr2; // chorusing for more natural beating
+
    // OSC variables
   Vec3f cell_acc,  cell_vel, cell_pos;
 
-  AlloApp() {
+  AlloApp() 
+  :	chr1(0.10), chr2(0.11)
+  {
+    //Gamma
+  	src.resize(Nc * Nm);
+		timer.finish();
+    // OSC
     cell_vel = Vec3f(0,0,0);
     cell_pos = Vec3f(0,0,0);
 
@@ -196,6 +217,8 @@ struct AlloApp : App, osc::PacketHandler {
     lens().far(1500);
 
     initWindow();
+    initAudio();
+
     light.pos(0, 0, 100);
     nav().pos(0, 0, 100);
 
@@ -204,21 +227,21 @@ struct AlloApp : App, osc::PacketHandler {
     constellVect.resize(stellCount);
 
     for (auto& s : constellVect) {
-      s.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
-      s.pos() *= rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
+      s.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
+      s.pos() *= al::rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
     }
 
     for (auto& d : dustVect) {
-      d.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
-      d.pos() *= rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
+      d.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
+      d.pos() *= al::rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
     }
     int i = 0;
     char str[128];
     for (auto& p : planetVect) {
-      p.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
-      p.pos() *= rnd::uniform(400.0, 1000.0) * (int(rand() % 2) * 2 - 1);
-      p.quat() = Quatd(rnd::uniformS(), rnd::uniformS(), rnd::uniformS(),
-                       rnd::uniformS());
+      p.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
+      p.pos() *= al::rnd::uniform(400.0, 1000.0) * (int(rand() % 2) * 2 - 1);
+      p.quat() = Quatd(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS(),
+                       al::rnd::uniformS());
       p.quat().normalize();
       p.vector_to_comet = c.pos() - p.pos();
       p.distance_to_comet = p.vector_to_comet.mag();
@@ -263,7 +286,7 @@ struct AlloApp : App, osc::PacketHandler {
     material();
     light();
     light.pos(nav().pos() - (0, 0 , 100));  // turns lighting back on
-
+    
 
     // Object Draw
     for (auto& d : dustVect) d.onDraw(g);
@@ -290,29 +313,38 @@ struct AlloApp : App, osc::PacketHandler {
   //  cout << cell_pos.z << endl;//<< cell_vel << cell_pos << endl;
     //
   }
-
-  void onSound(AudioIO& io) {
-    Planet p;
+  // Audio 
+  void onSound(AudioIOData& io) {
     gam::Sync::master().spu(audioIO().fps());
     while (io()) {
       if (timer()) {
-          for (auto& p : planetVect) {
-            
+          static double freqs[Nc] = {
+					  scl::freq("c4"),
+					  scl::freq("f4"), scl::freq("g4"), scl::freq("a4"), scl::freq("d5"),
+					  scl::freq("f5"), scl::freq("g5"), scl::freq("a5"), scl::freq("d6"),
+				  };
 
+				int i = gam::rnd::uni(Nc);
+				float f0 = freqs[i];
+				float A = gam::rnd::uni(0.1,1.);
 
-          }
+				//      osc #   frequency      amplitude               length
+				src.set(i*Nm+0, f0*1.000,      A*1.0*gam::rnd::uni(0.8,1.), 1600.0/f0);
+				src.set(i*Nm+1, f0*barFree(2), A*0.5*gam::rnd::uni(0.5,1.), 1200.0/f0);
+				src.set(i*Nm+2, f0*barFree(3), A*0.4*gam::rnd::uni(0.5,1.),  800.0/f0);
+				src.set(i*Nm+3, f0*barFree(4), A*0.3*gam::rnd::uni(0.5,1.),  400.0/f0);
+				src.set(i*Nm+4, f0*barFree(5), A*0.2*gam::rnd::uni(0.5,1.),  200.0/f0);
 
-          for (auto& s : constellVect) {
-
-
-
-          }
-
-          sined.set(500.0f - p.distance_to_comet * 6, 0.5f, 1.0f);
+				timer.period(gam::rnd::uni(0.01,1.5));
       }
-      float s = sined();
-      io.out(0) = s;
-      io.out(1) = s;
+			
+      float2 s = src() * 0.1;
+
+			s.x += chr1(s.x)*0.2;
+			s.y += chr2(s.y)*0.2;
+
+			io.out(0) = s.x;
+			io.out(1) = s.y;
     }
   }
 
