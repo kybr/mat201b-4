@@ -36,31 +36,29 @@ using namespace std;
 float maximumAcceleration = 5;  // prevents explosion, loss of planets
 float dragFactor = 0.1;           //
 float timeStep = 0.1;        // keys change this value for effect
-float scaleFactor = 0.02;          // resizes the entire scene
+float scaleFactor = 0.05;          // resizes the entire scene
 // Planet const.
-int planetCount = 23;
+int planetCount = 8;
 float planetRadius = 20;  // 
 float planetRange = 500;
 
 // Constellation const.
-int stellCount = 10;
+int stellCount = 2000;
 // Comet const.
 float cometRadius = 20;
 float steerFactor = 100;
 // Dust const.
-unsigned dustCount = 300;       
+unsigned dustCount = 500;       
 float dustRange = 1500;
 float dustRadius = 0.5;
 bool keys[4];
 
-Mesh planet;
-Mesh constell;    
-Mesh dust;    
-
+ostringstream oss;
 Image image;
 
-Mesh planetMesh, backMesh;
+Mesh planetMesh, backMesh, dustMesh, constellMesh;
 Texture cometTexture, backTexture;
+Texture planetTexture[8];
 // Frequent function: makes a random 3d vector 
 Vec3d r() { return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()); }
 
@@ -71,8 +69,9 @@ string fullPathOrDie(string fileName, string whereToLook = ".") {
  // whereToLook = "../media/";
   searchPaths.addSearchPath(whereToLook);
   string filePath = searchPaths.find(fileName).filepath();
+  //    cout << fileName << endl;
   if (filePath == "") {
-    fprintf(stderr, "FAIL2\n");
+    fprintf(stderr, "FAIL file import \n");
     exit(1);
   }
   return filePath;
@@ -82,7 +81,7 @@ struct Comet : Pose {
   Mesh comet;
   Comet (){
         // Comet texture
-    if (!image.load(fullPathOrDie("comet.jpg"))) {
+    if (!image.load(fullPathOrDie("comet.png"))) {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
@@ -94,39 +93,31 @@ struct Comet : Pose {
     g.pushMatrix();
     g.translate(pos());
     g.rotate(quat());
-    cometTexture.bind();
+    cometTexture.bind();    
     g.scale(scaleFactor);
     g.draw(comet);
     g.scale(1/scaleFactor);
     cometTexture.unbind();
     g.popMatrix();
+//    cout << pos() << endl;
   }
 };
 struct Planet : Pose {
-  Mesh planet;
   Vec3f vector_to_comet;
   float distance_to_comet;
-  Planet (){
-        // Planet texture
-    if (!image.load(fullPathOrDie("comet.jpg"))) {
-      fprintf(stderr, "FAIL\n");
-      exit(1);
-    }
-    addSphereWithTexcoords(planet, 10);
-    cometTexture.allocate(image.array());
-  }
+
+//    addSphereWithTexcoords(planet, 10);
+//    cometTexture.allocate(image.array());
   void onDraw(Graphics& g) {
     g.pushMatrix();
-    g.scale(scaleFactor);
     g.translate(pos());
     g.rotate(quat());
     g.draw(planetMesh);
-    g.scale(1 / scaleFactor);
     g.popMatrix();
   }
 };
 
-struct Constellation {
+struct Constellation : Pose {
   Vec3f position;
   Color ton;
   Constellation() {
@@ -134,11 +125,11 @@ struct Constellation {
   	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
     int stellCount = 10;
   }
- void draw(Graphics& g) {
+ void onDraw(Graphics& g) {
 	g.pushMatrix();
-	g.translate(position);
+	g.translate(pos());
 	g.color(ton);
-	g.draw(constell);
+	g.draw(constellMesh);
 	g.popMatrix();
  }
 };
@@ -146,15 +137,15 @@ struct Constellation {
  struct Dust : Pose {
   Vec3f position;
   Color ton;
-  Mesh dust;
+  Dust() {
+  	ton = HSV( rnd::uniform() * M_PI , 0.1, 1);
+  }
 
- void draw(Graphics& g) {
+ void onDraw(Graphics& g) {
  	g.pushMatrix();
-//  g.scale(scaleFactor);
 	g.translate(pos());
-//	g.color(ton);
-	g.draw(dust);
-//  g.scale(1/scaleFactor);
+	g.color(ton);
+	g.draw(dustMesh);
 	g.popMatrix();
  }
 };
@@ -165,9 +156,12 @@ struct AlloApp : App, osc::PacketHandler {
   Light light;
   Comet c;
   Constellation stell;
-  vector<Planet> planet;
-  vector<Constellation> constellation;
-  vector<Dust> dusts;
+  Planet p;
+  Dust d;
+
+  vector<Planet> planetVect;
+  vector<Constellation> constellVect;
+  vector<Dust> dustVect;
 
   // Gamma
   gam::SineD<> sined;
@@ -176,52 +170,67 @@ struct AlloApp : App, osc::PacketHandler {
   Vec3f cell_acc,  cell_vel, cell_pos;
 
   AlloApp() {
+    cell_vel = Vec3f(0,0,0);
+    cell_pos = Vec3f(0,0,0);
+
     // Background space texture
     if (!image.load(fullPathOrDie("back.jpg"))) {
       fprintf(stderr, "FAIL\n");
-      exit(1);
-      cell_vel = Vec3f(0,0,0);
-      cell_pos = Vec3f(0,0,0);
-    }
+      exit(1);    }
     backTexture.allocate(image.array());
 
+
     addSphereWithTexcoords(backMesh, 999);
-    addSphere(constell);
-    addSphere(planetMesh);
-    dust.primitive(Graphics::POINTS);
+    addSphere(planetMesh,50);
+    addSphere(constellMesh, 0.05);
+    addSphere(dustMesh, 0.1);
+  
+  //  dust.primitive(Graphics::POINTS);
 
     backMesh.generateNormals();
     planetMesh.generateNormals();
-    constell.generateNormals();
-    dust.generateNormals();
+    constellMesh.generateNormals();
+    dustMesh.generateNormals();
 
     lens().near(0.1);
-    lens().far(1000);
+    lens().far(1500);
 
     initWindow();
     light.pos(0, 0, 100);
     nav().pos(0, 0, 100);
 
-    planet.resize(planetCount);
-    dusts.resize(dustCount);  // make all the dusts
-    constellation.resize(stellCount);
+    planetVect.resize(planetCount);
+    dustVect.resize(dustCount);  // make all the dusts
+    constellVect.resize(stellCount);
 
-
-
-    for (auto& d : dusts) {
-      d.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
-      d.pos() *= rnd::uniform(-1000.0, 1000.0);
-      //d.vertex(pos());
+    for (auto& s : constellVect) {
+      s.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
+      s.pos() *= rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
     }
-    for (auto& p : planet) {
+
+    for (auto& d : dustVect) {
+      d.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
+      d.pos() *= rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
+    }
+    int i = 0;
+    char str[128];
+    for (auto& p : planetVect) {
       p.pos(rnd::uniformS(), rnd::uniformS(), rnd::uniformS());
-      p.pos() *= rnd::uniform(800.0, 800.0);
+      p.pos() *= rnd::uniform(400.0, 1000.0) * (int(rand() % 2) * 2 - 1);
       p.quat() = Quatd(rnd::uniformS(), rnd::uniformS(), rnd::uniformS(),
                        rnd::uniformS());
       p.quat().normalize();
       p.vector_to_comet = c.pos() - p.pos();
       p.distance_to_comet = p.vector_to_comet.mag();
-
+      oss << "planet_" << i << ".jpg";
+      string var = oss.str();
+      if (!image.load(fullPathOrDie(var))) {
+        fprintf(stderr, "FAIL\n");
+        exit(1);    }
+      planetTexture[i].allocate(image.array());
+      i += 1;
+      oss.str("");
+      oss.clear();
     }
 
     // OSC Receiver
@@ -250,18 +259,24 @@ struct AlloApp : App, osc::PacketHandler {
     g.draw(backMesh);
     backTexture.unbind();
     g.popMatrix();
-
     g.depthMask(true);
     material();
-    light();  // turns lighting back on
+    light();
+    light.pos(nav().pos() - (0, 0 , 100));  // turns lighting back on
 
-//    for (auto constell : constellation ) constell.draw(g);
-//    g.scale(scaleFactor);
-    for (auto d : dusts) d.draw(g);
-//    g.scale(1 / scaleFactor);
 
-//    for (auto& p : planet) p.onDraw(g);
+    // Object Draw
+    for (auto& d : dustVect) d.onDraw(g);
+    int i = 0;
+    for (auto& p : planetVect) {
+      planetTexture[i].bind();
+      p.onDraw(g);
+      planetTexture[i].unbind();
+      i += 1;
+      }
+    for (auto& s : constellVect) s.onDraw(g);
     c.onDraw(g);
+
   // OSC dynamics
     cell_vel.x += cell_acc.x;
     cell_vel.y += cell_acc.y;
@@ -272,10 +287,8 @@ struct AlloApp : App, osc::PacketHandler {
     
     cout << fixed;
     cout.precision(6); 
-    cout << cell_pos.z << endl;//<< cell_vel << cell_pos << endl;
+  //  cout << cell_pos.z << endl;//<< cell_vel << cell_pos << endl;
     //
-
-
   }
 
   void onSound(AudioIO& io) {
@@ -283,10 +296,19 @@ struct AlloApp : App, osc::PacketHandler {
     gam::Sync::master().spu(audioIO().fps());
     while (io()) {
       if (timer()) {
-        // sined.set(rnd::uniform(220.0f, 880.0f), 0.5f, 1.0f);
-//        for(int i=0 ; i < planetCount; i++){
+          for (auto& p : planetVect) {
+            
+
+
+          }
+
+          for (auto& s : constellVect) {
+
+
+
+          }
+
           sined.set(500.0f - p.distance_to_comet * 6, 0.5f, 1.0f);
-//        }
       }
       float s = sined();
       io.out(0) = s;
