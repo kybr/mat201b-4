@@ -23,7 +23,6 @@
 
 //#include omnistreo stuff
 
-#include "allocore/io/al_App.hpp"
 #include "Gamma/Oscillator.h"
 #include "Gamma/Effects.h"
 #include "allocore/math/al_Ray.hpp"
@@ -31,7 +30,6 @@
 #include "common.hpp"
 
 using namespace gam;
-
 using namespace al;
 using namespace std;
 
@@ -186,6 +184,12 @@ struct AlloApp : App, osc::PacketHandler {
   AlloApp() 
   :	chr1(0.10), chr2(0.11)
   {
+
+    /* AlloApp() 
+    : maker(Simulator::defaultBroadcastIP()),
+      InterfaceServerClient(Simulator::defaultInterfaceServerIP()) 
+    
+    */
     //Gamma
   	src.resize(Nc * Nm);
 		timer.finish();
@@ -217,6 +221,17 @@ struct AlloApp : App, osc::PacketHandler {
 
     initWindow();
     initAudio();
+/*
+    // audio
+    AlloSphereAudioSpatializer::initAudio();
+    AlloSphereAudioSpatializer::initSpatialization();
+    // if gamma
+    gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
+    scene()->addSource(aSoundSource);
+    aSoundSource.dopplerType(DOPPLER_NONE);
+    // scene()->usePerSampleProcessing(true);
+    scene()->usePerSampleProcessing(false);
+*/
 
     light.pos(0, 0, 100);
     nav().pos(0, 0, 100);
@@ -262,6 +277,12 @@ struct AlloApp : App, osc::PacketHandler {
   }
 
   void onAnimate(double dt) {
+    /*
+    while (InterfaceServerClient::oscRecv().recv())
+    ;
+    */
+
+
     // cuttlebone::Taker<State> taker;
   // State* stae = new State;
     // taker.get(*state);
@@ -338,7 +359,7 @@ struct AlloApp : App, osc::PacketHandler {
 
           timer.period(gam::rnd::uni(0.01,1.5));
         }
-        tmp += src() ;
+        tmp += src();
 
       }
       float2 s = tmp * 0.1;
