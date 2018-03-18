@@ -24,6 +24,8 @@
 //#include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
 
 #include "common.hpp"
+#include "alloutil/al_AlloSphereAudioSpatializer.hpp"
+#include "alloutil/al_Simulator.hpp"
 
 using namespace gam;
 using namespace al;
@@ -132,7 +134,7 @@ struct Constellation : Pose {
  }
 };
 
-struct AlloApp : App, osc::PacketHandler {
+struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient, osc::PacketHandler {
   bool simulate = true;
   Material material;
   Light light;
@@ -145,7 +147,7 @@ struct AlloApp : App, osc::PacketHandler {
   vector<Constellation> constellVect;
   vector<Dust> dustVect;
   float distance_to_comet[9];
-
+  float control;
   // Gamma
 	static const int Nc = 9; // # of chimes
 	static const int Nm = 5; // # of modes
@@ -159,8 +161,8 @@ struct AlloApp : App, osc::PacketHandler {
   cuttlebone::Maker<State> maker;
   AlloApp() 
   :	maker(Simulator::defaultBroadcastIP()),
-      InterfaceServerClient(Simulator::defaultInterfaceServerIP()) 
-    //chr1(0.10), chr2(0.11)
+      InterfaceServerClient(Simulator::defaultInterfaceServerIP()), 
+      chr1(0.10), chr2(0.11)
   {
 
     /* AlloApp() 
@@ -197,7 +199,6 @@ struct AlloApp : App, osc::PacketHandler {
     lens().far(1500);
 
     initWindow();
-    initAudio();
 
     // audio
     AlloSphereAudioSpatializer::initAudio();

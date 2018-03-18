@@ -6,7 +6,8 @@
 //
 
 #include "common.hpp"
-
+#include "alloutil/al_AlloSphereAudioSpatializer.hpp"
+#include "alloutil/al_Simulator.hpp"
 #include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
 
 using namespace std;
@@ -120,24 +121,14 @@ struct AlloApp : App, osc::PacketHandler {
   vector<Planet> planetVect;
   vector<Constellation> constellVect;
   vector<Dust> dustVect;
-  float distance_to_comet[9];
-
-  // Gamma
-	static const int Nc = 9; // # of chimes
-	static const int Nm = 5; // # of modes
-   // OSC variables
-  Vec3f cell_acc,  cell_vel, cell_pos;
 
   AlloApp() 
-   : maker(Simulator::defaultBroadcastIP()),
-      InterfaceServerClient(Simulator::defaultInterfaceServerIP()) 
   {
     // Background space texture
     if (!image.load(fullPathOrDie("back.jpg"))) {
       fprintf(stderr, "FAIL\n");
       exit(1);    }
     backTexture.allocate(image.array());
-
 
     addSphereWithTexcoords(backMesh, 999);
     addSphere(planetMesh,50);
