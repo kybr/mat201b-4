@@ -40,12 +40,12 @@ struct State {
  // Comet
     Vec3f comet_pose;
  // Planets
-    Vec3f planet_pose[planetCount];
-    Vec3f planet_quat[planetCount];
+    Vec3f planet_pose[9];
+    Quatd planet_quat[9];
  // dust
-    Vec3f dust_pose[dustCount];
+    Vec3f dust_pose[500];
 // Constell
-    Vec3f stell_pose[stellCount] 
+    Vec3f stell_pose[2000];
 };
 
 #endif

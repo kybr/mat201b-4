@@ -26,6 +26,7 @@
 #include "common.hpp"
 #include "alloutil/al_AlloSphereAudioSpatializer.hpp"
 #include "alloutil/al_Simulator.hpp"
+#include "allocore/io/al_ControlNav.hpp"
 
 using namespace gam;
 using namespace al;
@@ -93,8 +94,6 @@ struct Comet : Pose {
 };
 struct Planet : Pose {
   Vec3f vector_to_comet;
-//    addSphereWithTexcoords(planet, 10);
-//    cometTexture.allocate(image.array());
   void onDraw(Graphics& g) {
     g.pushMatrix();
     g.translate(pos());
@@ -143,13 +142,13 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   Comet c;
   Constellation stell;
   Planet p;
-  Dust d;
+  Dust dust;
 
   vector<Planet> planetVect;
   vector<Constellation> constellVect;
   vector<Dust> dustVect;
   float distance_to_comet[9];
-  float control;
+  float control, azi_control;
   // Gamma
 	static const int Nc = 9; // # of chimes
 	static const int Nm = 5; // # of modes
@@ -219,9 +218,9 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       s.pos() *= al::rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
     }
 
-    for (auto& d : dustVect) {
-      d.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
-      d.pos() *= al::rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
+    for (auto& du : dustVect) {
+      du.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
+      du.pos() *= al::rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
     }
     int i = 0;
     char str[128];
@@ -259,6 +258,20 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     float d = v.mag();
     c.pos() += (v / d) * (10 - d);
 
+  // OSC control
+  if (control < -0.5) nav().moveR(-0.05);
+  else if (control > 0.5) nav().moveR(+0.05);
+  else nav().moveR(0);
+  // in any cases, comet goes forward
+  if (control) nav().moveF( 0.05);
+
+  //if (azi_control < -0.5) nav().moveR(-0.05);
+ // else if (control > 0.5) nav().moveR(+0.05);
+//  else nav().moveR(0);
+
+
+
+
  //for cuttlebone
  // Observer
     state.navPosition = nav().pos();
@@ -272,7 +285,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     }
  // dust
     for (int i = 0 ; i < dustCount; i++){
-      state.dust_pose[i] = d.pos();
+      state.dust_pose[i] = dust.pos();
     }
 
 // Constell
@@ -311,6 +324,8 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
 
   // OSC dynamics
     control = cell_gravity.z;
+    azi_control = cell_gravity.x;
+
     cout << fixed;
     cout.precision(6); 
   }
