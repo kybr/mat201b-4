@@ -10,6 +10,8 @@
 
 #include "common.hpp"
 
+#include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
+
 using namespace al;
 
 struct MyApp : App {
@@ -24,7 +26,21 @@ struct MyApp : App {
     initWindow();
   }
 
-  virtual void onAnimate(double dt) { taker.get(state); }
+  virtual void onAnimate(double dt) { 
+    
+
+    taker.get(state); 
+    static bool hasNeverHeardFromSim = true;
+    if (taker.get(state) > 0) hasNeverHeardFromSim = false;
+    if (hasNeverHeardFromSim) return;
+
+
+      myCursor.position = state.cursorPosition;
+      nav().pos(state.navPosition);
+      nav().quat (state.navOrienation);
+    }
+    
+    }
 
   virtual void onDraw(Graphics& g, const Viewpoint& v) {
     g.translate(state.ball_position);
