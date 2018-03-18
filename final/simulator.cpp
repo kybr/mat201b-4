@@ -68,6 +68,7 @@ float barFree(float mode){
   return 0.441f*res*res;
 }
 struct Comet : Pose {
+  SoundSource *soundSource;
   Mesh comet;
   Comet (){
         // Comet texture
@@ -76,8 +77,8 @@ struct Comet : Pose {
       exit(1);
     }
     addSphereWithTexcoords(comet, 10);
-//    addSphereWithTexcoords(comet, 999);
     cometTexture.allocate(image.array());
+     soundSource = new SoundSource;
   }
   void onDraw(Graphics& g) {
     g.pushMatrix();
@@ -93,7 +94,11 @@ struct Comet : Pose {
   }
 };
 struct Planet : Pose {
+  SoundSource *soundSource;
   Vec3f vector_to_comet;
+  Planet(){
+     soundSource = new SoundSource;
+  }
   void onDraw(Graphics& g) {
     g.pushMatrix();
     g.translate(pos());
@@ -120,9 +125,11 @@ struct Constellation : Pose {
 };
  
  struct Dust : Pose {
+  SoundSource *soundSource;
   Vec3f position;
   Color ton;
   Dust() {
+    soundSource = new SoundSource;
   	ton = HSV( al::rnd::uniform() * M_PI , 0.1, 1);
   }
 
@@ -200,10 +207,10 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     AlloSphereAudioSpatializer::initSpatialization();
     // if gamma
     gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
-    scene()->addSource(aSoundSource);
-    aSoundSource.dopplerType(DOPPLER_NONE);
+  //  scene()->addSource(aSoundSource);
+ //   aSoundSource.dopplerType(DOPPLER_NONE);
     // scene()->usePerSampleProcessing(true);
-    scene()->usePerSampleProcessing(false);
+ //   scene()->usePerSampleProcessing(false);
 
 
     light.pos(0, 0, 100);
@@ -265,9 +272,9 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   // in any cases, comet goes forward
   if (control) nav().moveF( 0.05);
 
-  //if (azi_control < -0.5) nav().moveR(-0.05);
- // else if (control > 0.5) nav().moveR(+0.05);
-//  else nav().moveR(0);
+  if (azi_control < -0.5) nav().moveU(-0.02);
+  else if (control > 0.5) nav().moveU(+0.02);
+  else nav().moveU(0);
 
 
 
@@ -322,17 +329,17 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     for (auto& s : constellVect) s.onDraw(g);
     c.onDraw(g);
 
-  // OSC dynamics
+  // OSC dynami                  cs
     control = cell_gravity.z;
     azi_control = cell_gravity.x;
-
+  //  cout << azi_control << endl;
     cout << fixed;
     cout.precision(6); 
   }
   // Audio 
-  SoundSource aSoundSource;
+//  SoundSource aSoundSource;
   virtual void onSound(al::AudioIOData& io) {
-    aSoundSource.pose(nav());
+    gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
     float2 tmp;
     while (io()) {
       for (int i = 0; i < planetCount; i++){
@@ -345,8 +352,8 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
 
   //				int i = gam::rnd::uni(Nc);
           float f0 = freqs[i];
-          float A = gam::rnd::uni(0.1,1.)* 100 / distance_to_comet[i];
-
+          float A = 100 / distance_to_comet[i];
+          
           //      osc #   frequency      amplitude               length
           src.set(i*Nm+0, f0*1.000,      A*1.0*gam::rnd::uni(0.8,1.), 1600.0/f0);
           src.set(i*Nm+1, f0*barFree(2), A*0.5*gam::rnd::uni(0.5,1.), 1200.0/f0);
@@ -366,8 +373,11 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
 
 			io.out(0) = s.x;
 			io.out(1) = s.y;
+  //  cout << s.x << endl;
+
     }
     listener()->pose(nav());
+    io.frame(0);
     scene()->render(io);  
   }
 
