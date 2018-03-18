@@ -24,7 +24,7 @@ Texture planetTexture[9];
 string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
 // XXX Path should be changed to work in different machines 
-  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
+//  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
  // whereToLook = "../media/";
 
   searchPaths.addSearchPath(whereToLook);
@@ -41,6 +41,12 @@ string fullPathOrDie(string fileName, string whereToLook = ".") {
 struct Comet : Pose {
   Mesh comet;
   Comet (){
+    // Background texture
+    if (!image.load(fullPathOrDie("back.jpg"))) {
+      fprintf(stderr, "FAIL\n");
+      exit(1);    }
+    backTexture.allocate(image.array());
+
         // Comet texture
     if (!image.load(fullPathOrDie("comet.png"))) {
       fprintf(stderr, "FAIL\n");
@@ -110,10 +116,6 @@ struct MyApp : OmniStereoGraphicsRenderer {
   MyApp() 
   {
     // Background space texture
-    if (!image.load(fullPathOrDie("back.jpg"))) {
-      fprintf(stderr, "FAIL\n");
-      exit(1);    }
-    backTexture.allocate(image.array());
 
     addSphereWithTexcoords(backMesh, 999);
     addSphere(planetMesh,50);
