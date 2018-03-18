@@ -5,10 +5,10 @@
 // Cuttlebone "Laptop Graphics Renderer"
 //
 
-#include "common.hpp"
 #include "alloutil/al_AlloSphereAudioSpatializer.hpp"
-#include "alloutil/al_Simulator.hpp"
 #include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
+#include "alloutil/al_Simulator.hpp"
+#include "common.hpp"
 
 using namespace std;
 using namespace al;
@@ -23,9 +23,9 @@ Texture planetTexture[9];
 
 string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
-// XXX Path should be changed to work in different machines 
+  // XXX Path should be changed to work in different machines
   whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
- // whereToLook = "../media/";
+  // whereToLook = "../media/";
 
   searchPaths.addSearchPath(whereToLook);
   string filePath = searchPaths.find(fileName).filepath();
@@ -40,27 +40,27 @@ string fullPathOrDie(string fileName, string whereToLook = ".") {
 
 struct Comet : Pose {
   Mesh comet;
-  Comet (){
-        // Comet texture
+  Comet() {
+    // Comet texture
     if (!image.load(fullPathOrDie("comet.png"))) {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
     addSphereWithTexcoords(comet, 10);
-//    addSphereWithTexcoords(comet, 999);
+    //    addSphereWithTexcoords(comet, 999);
     cometTexture.allocate(image.array());
   }
   void onDraw(Graphics& g) {
     g.pushMatrix();
     g.translate(state.comet_pose);
     g.rotate(quat());
-    cometTexture.bind();    
+    cometTexture.bind();
     g.scale(scaleFactor);
     g.draw(comet);
-    g.scale(1/scaleFactor);
+    g.scale(1 / scaleFactor);
     cometTexture.unbind();
     g.popMatrix();
-//    cout << pos() << endl;
+    //    cout << pos() << endl;
   }
 };
 struct Planet : Pose {
@@ -71,24 +71,22 @@ struct Constellation : Pose {
   Vec3f position;
   Color ton;
   Constellation() {
-  	ton = HSV( al::rnd::uniform() * M_PI , 0.1, 1);
+    ton = HSV(al::rnd::uniform() * M_PI, 0.1, 1);
     int stellCount = 10;
   }
- void onDraw(Graphics& g) {
-	g.pushMatrix();
-	g.translate(pos());
-	g.color(1,1,1);
-	g.draw(constellMesh);
-	g.popMatrix();
- }
+  void onDraw(Graphics& g) {
+    g.pushMatrix();
+    g.translate(pos());
+    g.color(1, 1, 1);
+    g.draw(constellMesh);
+    g.popMatrix();
+  }
 };
- 
- struct Dust : Pose {
+
+struct Dust : Pose {
   Vec3f position;
   Color ton;
-  Dust() {
-  	ton = HSV( al::rnd::uniform() * M_PI , 0.1, 1);
-  }
+  Dust() { ton = HSV(al::rnd::uniform() * M_PI, 0.1, 1); }
 };
 
 struct MyApp : OmniStereoGraphicsRenderer {
@@ -107,20 +105,20 @@ struct MyApp : OmniStereoGraphicsRenderer {
   vector<Constellation> constellVect;
   vector<Dust> dustVect;
 
-  MyApp() 
-  {
+  MyApp() {
     // Background space texture
     if (!image.load(fullPathOrDie("back.jpg"))) {
       fprintf(stderr, "FAIL\n");
-      exit(1);    }
+      exit(1);
+    }
     backTexture.allocate(image.array());
 
     addSphereWithTexcoords(backMesh, 999);
-    addSphere(planetMesh,50);
+    addSphere(planetMesh, 50);
     addSphere(constellMesh, 0.05);
     addSphere(dustMesh, 0.1);
-  
-  //  dust.primitive(Graphics::POINTS);
+
+    //  dust.primitive(Graphics::POINTS);
 
     backMesh.generateNormals();
     planetMesh.generateNormals();
@@ -141,27 +139,28 @@ struct MyApp : OmniStereoGraphicsRenderer {
 
     for (auto& s : constellVect) {
       s.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
-      s.pos() *= al::rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
+      s.pos() *= al::rnd::uniform(10.0, 300.0) * (int(rand() % 2) * 2 - 1);
     }
 
     for (auto& d : dustVect) {
       d.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
-      d.pos() *= al::rnd::uniform(10.0, 300.0)* (int(rand() % 2) * 2 - 1);
+      d.pos() *= al::rnd::uniform(10.0, 300.0) * (int(rand() % 2) * 2 - 1);
     }
     int i = 0;
     char str[128];
     for (auto& p : planetVect) {
       p.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
       p.pos() *= al::rnd::uniform(400.0, 1000.0) * (int(rand() % 2) * 2 - 1);
-      p.quat() = Quatd(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS(),
-                       al::rnd::uniformS());
+      p.quat() = Quatd(al::rnd::uniformS(), al::rnd::uniformS(),
+                       al::rnd::uniformS(), al::rnd::uniformS());
       p.quat().normalize();
       p.vector_to_comet = c.pos() - p.pos();
       oss << "planet_" << i << ".jpg";
       string var = oss.str();
       if (!image.load(fullPathOrDie(var))) {
         fprintf(stderr, "FAIL\n");
-        exit(1);    }
+        exit(1);
+      }
       planetTexture[i].allocate(image.array());
       i += 1;
       oss.str("");
@@ -170,15 +169,14 @@ struct MyApp : OmniStereoGraphicsRenderer {
   }
 
   void onAnimate(double dt) {
-    
-    taker.get(state); 
+    taker.get(state);
     static bool hasNeverHeardFromSim = true;
     if (taker.get(state) > 0) hasNeverHeardFromSim = false;
     if (hasNeverHeardFromSim) return;
 
     nav().pos(state.navPosition);
-    nav().quat (state.navOrientation);
-    
+    nav().quat(state.navOrientation);
+
     nav().faceToward(c);
     c.quat() = nav();
     Vec3f v = (c.pos() - nav());
@@ -197,21 +195,20 @@ struct MyApp : OmniStereoGraphicsRenderer {
     g.depthMask(true);
     material();
     light();
-    light.pos(nav().pos() - (0, 0 , 100));  // turns lighting back on
-    
+    light.pos(nav().pos() - (0, 0, 100));  // turns lighting back on
 
     // Object Draw
     // dust
-    for (int i = 0 ; i < dustCount; i++){
+    for (int i = 0; i < dustCount; i++) {
       g.pushMatrix();
       g.translate(state.dust_pose[i]);
-      g.color(1,1,1);
+      g.color(1, 1, 1);
       g.draw(dustMesh);
       g.popMatrix();
     }
 
     // planet
-    for (int i = 0 ; i < planetCount; i++){
+    for (int i = 0; i < planetCount; i++) {
       planetTexture[i].bind();
       g.pushMatrix();
       g.translate(state.planet_pose[i]);
@@ -221,7 +218,7 @@ struct MyApp : OmniStereoGraphicsRenderer {
       g.popMatrix();
     }
 
-    for (int i = 0 ; i < stellCount; i++){
+    for (int i = 0; i < stellCount; i++) {
       g.pushMatrix();
       g.translate(state.stell_pose[i]);
       g.draw(planetMesh);
@@ -230,7 +227,7 @@ struct MyApp : OmniStereoGraphicsRenderer {
   }
 };
 
-int main() { 
+int main() {
   MyApp app;
   app.taker.start();
   app.start();
