@@ -31,6 +31,7 @@ string fullPathOrDie(string fileName, string whereToLook = ".") {
   string filePath = searchPaths.find(fileName).filepath();
   //    cout << fileName << endl;
   if (filePath == "") {
+    cout << fileName << endl;
     fprintf(stderr, "FAIL file import \n");
     exit(1);
   }
@@ -41,7 +42,7 @@ struct Comet : Pose {
   Mesh comet;
   Comet (){
         // Comet texture
-    if (!image.load(fullPathOrDie("comet.jpg"))) {
+    if (!image.load(fullPathOrDie("comet.png"))) {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
@@ -76,7 +77,7 @@ struct Constellation : Pose {
  void onDraw(Graphics& g) {
 	g.pushMatrix();
 	g.translate(pos());
-	g.color(ton);
+	g.color(1,1,1);
 	g.draw(constellMesh);
 	g.popMatrix();
  }
@@ -90,7 +91,7 @@ struct Constellation : Pose {
   }
 };
 
-struct AlloApp : App, osc::PacketHandler {
+struct MyApp : OmniStereoGraphicsRenderer {
   bool simulate = true;
   Material material;
   Light light;
@@ -106,7 +107,7 @@ struct AlloApp : App, osc::PacketHandler {
   vector<Constellation> constellVect;
   vector<Dust> dustVect;
 
-  AlloApp() 
+  MyApp() 
   {
     // Background space texture
     if (!image.load(fullPathOrDie("back.jpg"))) {
@@ -156,7 +157,6 @@ struct AlloApp : App, osc::PacketHandler {
                        al::rnd::uniformS());
       p.quat().normalize();
       p.vector_to_comet = c.pos() - p.pos();
-      distance_to_comet[i] = p.vector_to_comet.mag();
       oss << "planet_" << i << ".jpg";
       string var = oss.str();
       if (!image.load(fullPathOrDie(var))) {
@@ -176,14 +176,9 @@ struct AlloApp : App, osc::PacketHandler {
     if (taker.get(state) > 0) hasNeverHeardFromSim = false;
     if (hasNeverHeardFromSim) return;
 
-      nav().pos(state.navPosition);
-      nav().quat (state.navOrienation);
+    nav().pos(state.navPosition);
+    nav().quat (state.navOrientation);
     
-
-    // cuttlebone::Taker<State> taker;
-  // State* stae = new State;
-    // taker.get(*state);
-    // nav. state->pose ????
     nav().faceToward(c);
     c.quat() = nav();
     Vec3f v = (c.pos() - nav());
@@ -210,7 +205,7 @@ struct AlloApp : App, osc::PacketHandler {
     for (int i = 0 ; i < dustCount; i++){
       g.pushMatrix();
       g.translate(state.dust_pose[i]);
-      g.color(ton);
+      g.color(1,1,1);
       g.draw(dustMesh);
       g.popMatrix();
     }
@@ -236,6 +231,7 @@ struct AlloApp : App, osc::PacketHandler {
 };
 
 int main() { 
-  AlloApp().start();
-  AlloApp().taker.start(); 
-  }
+  MyApp app;
+  app.taker.start();
+  app.start();
+}
