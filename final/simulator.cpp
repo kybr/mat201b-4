@@ -26,6 +26,8 @@
 #include "common.hpp"
 #include "alloutil/al_AlloSphereAudioSpatializer.hpp"
 #include "alloutil/al_Simulator.hpp"
+#include "alloutil/al_AlloSphereSpeakerLayout.hpp"
+
 #include "allocore/io/al_ControlNav.hpp"
 
 using namespace gam;
@@ -337,7 +339,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     cout.precision(6); 
   }
   // Audio 
-//  SoundSource aSoundSource;
+  // SoundSource aSoundSource;
   virtual void onSound(al::AudioIOData& io) {
     gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
     float2 tmp;
@@ -349,8 +351,6 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
               scl::freq("f4"), scl::freq("g4"), scl::freq("a4"), scl::freq("d5"),
               scl::freq("f5"), scl::freq("g5"), scl::freq("a5"), scl::freq("d6"),
             };
-
-  //				int i = gam::rnd::uni(Nc);
           float f0 = freqs[i];
           float A = 100 / distance_to_comet[i];
           
