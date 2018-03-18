@@ -21,38 +21,15 @@
   */
 
 
-//#include omnistreo stuff
+//#include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
 
-#include "Gamma/Oscillator.h"
-#include "Gamma/Effects.h"
-#include "allocore/math/al_Ray.hpp"
-#include "allocore/math/al_Vec.hpp"
 #include "common.hpp"
+#include "alloutil/al_AlloSphereAudioSpatializer.hpp"
+#include "alloutil/al_Simulator.hpp"
 
 using namespace gam;
 using namespace al;
 using namespace std;
-
-// Physics const.
-float maximumAcceleration = 5;  // prevents explosion, loss of planets
-float dragFactor = 0.1;           //
-float timeStep = 0.1;        // keys change this value for effect
-float scaleFactor = 0.05;          // resizes the entire scene
-// Planet const.
-int planetCount = 9;
-float planetRadius = 20;  // 
-float planetRange = 500;
-
-// Constellation const.
-int stellCount = 2000;
-// Comet const.
-float cometRadius = 20;
-float steerFactor = 100;
-// Dust const.
-unsigned dustCount = 500;       
-float dustRange = 1500;
-float dustRadius = 0.5;
-bool keys[4];
 
 ostringstream oss;
 Image image;
@@ -157,7 +134,7 @@ struct Constellation : Pose {
  }
 };
 
-struct AlloApp : App, osc::PacketHandler {
+struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient, osc::PacketHandler {
   bool simulate = true;
   Material material;
   Light light;
@@ -170,7 +147,7 @@ struct AlloApp : App, osc::PacketHandler {
   vector<Constellation> constellVect;
   vector<Dust> dustVect;
   float distance_to_comet[9];
-
+  float control;
   // Gamma
 	static const int Nc = 9; // # of chimes
 	static const int Nm = 5; // # of modes
@@ -179,10 +156,13 @@ struct AlloApp : App, osc::PacketHandler {
 	Chorus<> chr1, chr2; // chorusing for more natural beating
 
    // OSC variables
-  Vec3f cell_acc,  cell_vel, cell_pos;
-
+  Vec3f cell_gravity;
+  State state;
+  cuttlebone::Maker<State> maker;
   AlloApp() 
-  :	chr1(0.10), chr2(0.11)
+  :	maker(Simulator::defaultBroadcastIP()),
+      InterfaceServerClient(Simulator::defaultInterfaceServerIP()), 
+      chr1(0.10), chr2(0.11)
   {
 
     /* AlloApp() 
@@ -194,8 +174,7 @@ struct AlloApp : App, osc::PacketHandler {
   	src.resize(Nc * Nm);
 		timer.finish();
     // OSC
-    cell_vel = Vec3f(0,0,0);
-    cell_pos = Vec3f(0,0,0);
+    cell_gravity = Vec3f(0,0,0);
 
     // Background space texture
     if (!image.load(fullPathOrDie("back.jpg"))) {
@@ -220,8 +199,7 @@ struct AlloApp : App, osc::PacketHandler {
     lens().far(1500);
 
     initWindow();
-    initAudio();
-/*
+
     // audio
     AlloSphereAudioSpatializer::initAudio();
     AlloSphereAudioSpatializer::initSpatialization();
@@ -231,7 +209,7 @@ struct AlloApp : App, osc::PacketHandler {
     aSoundSource.dopplerType(DOPPLER_NONE);
     // scene()->usePerSampleProcessing(true);
     scene()->usePerSampleProcessing(false);
-*/
+
 
     light.pos(0, 0, 100);
     nav().pos(0, 0, 100);
@@ -277,23 +255,20 @@ struct AlloApp : App, osc::PacketHandler {
   }
 
   void onAnimate(double dt) {
-    /*
     while (InterfaceServerClient::oscRecv().recv())
     ;
-    */
-
-
-    // cuttlebone::Taker<State> taker;
-  // State* stae = new State;
-    // taker.get(*state);
-    // nav. state->pose ????
     nav().faceToward(c);
     c.quat() = nav();
     Vec3f v = (c.pos() - nav());
     float d = v.mag();
     c.pos() += (v / d) * (10 - d);
+
+    state.navPosition = nav().pos();
+    state.navOrientation = nav().quat();
+    maker.set(state);
   }
   void onDraw(Graphics& g) {
+    // Background Mesh Draw
     g.lighting(false);
     g.depthMask(false);
     g.pushMatrix();
@@ -321,21 +296,14 @@ struct AlloApp : App, osc::PacketHandler {
     c.onDraw(g);
 
   // OSC dynamics
-    cell_vel.x += cell_acc.x;
-    cell_vel.y += cell_acc.y;
-    cell_vel.z += cell_acc.z;
-    cell_pos.x +=  cell_vel.x;
-    cell_pos.y +=  cell_vel.y;
-    cell_pos.z +=  cell_vel.z;
-    
+    control = cell_gravity.z + 1;
     cout << fixed;
     cout.precision(6); 
-  //  cout << cell_pos.z << endl;//<< cell_vel << cell_pos << endl;
-    //
   }
   // Audio 
-  void onSound(AudioIOData& io) {
-    gam::Sync::master().spu(audioIO().fps());
+  SoundSource aSoundSource;
+  virtual void onSound(al::AudioIOData& io) {
+    aSoundSource.pose(nav());
     float2 tmp;
     while (io()) {
       for (int i = 0; i < planetCount; i++){
@@ -370,70 +338,25 @@ struct AlloApp : App, osc::PacketHandler {
 			io.out(0) = s.x;
 			io.out(1) = s.y;
     }
+    listener()->pose(nav());
+    scene()->render(io);  
   }
 
   void onMessage(osc::Message& m) {
     Vec3f o, r;
-/*
-    if (m.addressPattern() == "/gyrosc/gyro") {
-      m >> r.x;
-      m >> r.y;
-      m >> r.z; 
-    }*/
-    if (m.addressPattern() == "/gyrosc/accel") {
+    if (m.addressPattern() == "/gyrosc/grav") {
       m >> o.x;
       m >> o.y;
       m >> o.z;
     } 
-    cell_acc = o;
-    
-/*
-    cell_acc.x = o.x;
-    cell_acc.y = o.y;
-    cell_acc.z = o.z;
-    cell_gyro.x = r.x;
-    cell_gyro.y = r.y;
-    cell_gyro.z = r.z;
-*/
-  }
-
-
-
-  void onKeyDown(const ViewpointWindow&, const Keyboard& k) {
-    switch (k.key()) {
-      default:
-    	break;
-      case 't':
-        keys[0] = true;
-        break;
-      case 'g':
-        keys[1] = true;
-        break;
-      case 'f':
-        keys[2] = true;
-        break;
-      case 'h': 
-        keys[3] = true;
-        break;
-    }
-  }
-
-  void onKeyUp(const ViewpointWindow&, const Keyboard& k) {
-    switch (k.key()) {
-      case 't':
-        keys[0] = false;
-        break;
-      case 'g':
-        keys[1] = false;
-        break;
-      case 'f':
-        keys[2] = false;
-        break;
-      case 'h':
-        keys[3] = false;
-        break;
-    }
+    cell_gravity = o;
   }
 };
 
-int main() { AlloApp().start(); }
+int main() { 
+  AlloApp app;
+  app.AlloSphereAudioSpatializer::audioIO().start();
+  app.InterfaceServerClient::connect();
+  app.maker.start();
+  app.start();
+}
