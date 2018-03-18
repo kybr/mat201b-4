@@ -43,7 +43,7 @@ string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
 
 // XXX Path should be changed to work in different machines 
-  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
+ // whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
  // whereToLook = "../media/";
 
   searchPaths.addSearchPath(whereToLook);
