@@ -68,7 +68,7 @@ struct Comet : Pose {
   Mesh comet;
   Comet (){
         // Comet texture
-    if (!image.load(fullPathOrDie("comet.jpg"))) {
+    if (!image.load(fullPathOrDie("comet.png"))) {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
