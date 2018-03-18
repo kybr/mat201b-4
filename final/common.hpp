@@ -48,4 +48,21 @@ struct State {
   Vec3f stell_pose[2000];
 };
 
+string fullPathOrDie(string fileName, string whereToLook = ".") {
+  SearchPaths searchPaths;
+  // XXX Path should be changed to work in different machines
+  //  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
+  // whereToLook = "../media/";
+
+  searchPaths.addSearchPath(whereToLook);
+  string filePath = searchPaths.find(fileName).filepath();
+  //    cout << fileName << endl;
+  if (filePath == "") {
+    cout << fileName << endl;
+    fprintf(stderr, "FAIL file import \n");
+    exit(1);
+  }
+  return filePath;
+}
+
 #endif

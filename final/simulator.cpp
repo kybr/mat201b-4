@@ -40,22 +40,6 @@ Mesh planetMesh, backMesh, dustMesh, constellMesh;
 Texture cometTexture, backTexture;
 Texture planetTexture[9];
 
-string fullPathOrDie(string fileName, string whereToLook = ".") {
-  SearchPaths searchPaths;
-
-  // XXX Path should be changed to work in different machines
-  // whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
-  // whereToLook = "../media/";
-
-  searchPaths.addSearchPath(whereToLook);
-  string filePath = searchPaths.find(fileName).filepath();
-  //    cout << fileName << endl;
-  if (filePath == "") {
-    fprintf(stderr, "FAIL file import \n");
-    exit(1);
-  }
-  return filePath;
-}
 // Sound Functions
 // Returns frequency ratio of a mode of a bar clamped at one end
 float barClamp(float mode) {
