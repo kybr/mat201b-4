@@ -23,9 +23,10 @@ Texture planetTexture[9];
 
 string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
-//  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/media";
+// XXX Path should be changed to work in different machines 
   whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
  // whereToLook = "../media/";
+ 
   searchPaths.addSearchPath(whereToLook);
   string filePath = searchPaths.find(fileName).filepath();
   //    cout << fileName << endl;

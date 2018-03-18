@@ -40,9 +40,11 @@ Texture planetTexture[9];
 
 string fullPathOrDie(string fileName, string whereToLook = ".") {
   SearchPaths searchPaths;
-//  whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/media";
+
+// XXX Path should be changed to work in different machines 
   whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
  // whereToLook = "../media/";
+
   searchPaths.addSearchPath(whereToLook);
   string filePath = searchPaths.find(fileName).filepath();
   //    cout << fileName << endl;
@@ -134,7 +136,7 @@ struct Constellation : Pose {
  }
 };
 
-struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient, osc::PacketHandler {
+struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   bool simulate = true;
   Material material;
   Light light;
@@ -164,12 +166,6 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient, osc::Pa
       InterfaceServerClient(Simulator::defaultInterfaceServerIP()), 
       chr1(0.10), chr2(0.11)
   {
-
-    /* AlloApp() 
-    : maker(Simulator::defaultBroadcastIP()),
-      InterfaceServerClient(Simulator::defaultInterfaceServerIP()) 
-    
-    */
     //Gamma
   	src.resize(Nc * Nm);
 		timer.finish();
@@ -249,9 +245,9 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient, osc::Pa
     }
 
     // OSC Receiver
-    oscRecv().open(60777,"",0.016, Socket::UDP);
-    oscRecv().handler(*this);
-    oscRecv().start();
+    al::InterfaceServerClient::oscRecv().open(60777,"",0.016, Socket::UDP);
+    al::InterfaceServerClient::oscRecv().handler(*this);
+    al::InterfaceServerClient::oscRecv().start();
   }
 
   void onAnimate(double dt) {
@@ -296,7 +292,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient, osc::Pa
     c.onDraw(g);
 
   // OSC dynamics
-    control = cell_gravity.z + 1;
+    control = cell_gravity.z;
     cout << fixed;
     cout.precision(6); 
   }
