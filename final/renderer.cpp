@@ -26,7 +26,7 @@ string fullPathOrDie(string fileName, string whereToLook = ".") {
 // XXX Path should be changed to work in different machines 
   whereToLook = "/home/ben/Desktop/work/AlloSystem/mat201b/ben/final/media";
  // whereToLook = "../media/";
- 
+
   searchPaths.addSearchPath(whereToLook);
   string filePath = searchPaths.find(fileName).filepath();
   //    cout << fileName << endl;
@@ -51,7 +51,7 @@ struct Comet : Pose {
   }
   void onDraw(Graphics& g) {
     g.pushMatrix();
-    g.translate(pos());
+    g.translate(state.comet_pose);
     g.rotate(quat());
     cometTexture.bind();    
     g.scale(scaleFactor);
@@ -64,15 +64,6 @@ struct Comet : Pose {
 };
 struct Planet : Pose {
   Vec3f vector_to_comet;
-//    addSphereWithTexcoords(planet, 10);
-//    cometTexture.allocate(image.array());
-  void onDraw(Graphics& g) {
-    g.pushMatrix();
-    g.translate(pos());
-    g.rotate(quat());
-    g.draw(planetMesh);
-    g.popMatrix();
-  }
 };
 
 struct Constellation : Pose {
@@ -97,14 +88,6 @@ struct Constellation : Pose {
   Dust() {
   	ton = HSV( al::rnd::uniform() * M_PI , 0.1, 1);
   }
-
- void onDraw(Graphics& g) {
- 	g.pushMatrix();
-	g.translate(pos());
-	g.color(ton);
-	g.draw(dustMesh);
-	g.popMatrix();
- }
 };
 
 struct AlloApp : App, osc::PacketHandler {
@@ -196,12 +179,6 @@ struct AlloApp : App, osc::PacketHandler {
       nav().pos(state.navPosition);
       nav().quat (state.navOrienation);
     
-    
-    /*
-    while (InterfaceServerClient::oscRecv().recv())
-    ;
-    */
-
 
     // cuttlebone::Taker<State> taker;
   // State* stae = new State;
@@ -229,17 +206,32 @@ struct AlloApp : App, osc::PacketHandler {
     
 
     // Object Draw
-    for (auto& d : dustVect) d.onDraw(g);
-    int i = 0;
-    for (auto& p : planetVect) {
-      planetTexture[i].bind();
-      p.onDraw(g);
-      planetTexture[i].unbind();
-      i += 1;
-      }
-    for (auto& s : constellVect) s.onDraw(g);
-    c.onDraw(g);
+    // dust
+    for (int i = 0 ; i < dustCount; i++){
+      g.pushMatrix();
+      g.translate(state.dust_pose[i]);
+      g.color(ton);
+      g.draw(dustMesh);
+      g.popMatrix();
+    }
 
+    // planet
+    for (int i = 0 ; i < planetCount; i++){
+      planetTexture[i].bind();
+      g.pushMatrix();
+      g.translate(state.planet_pose[i]);
+      g.rotate(state.planet_quat[i]);
+      g.draw(planetMesh);
+      planetTexture[i].unbind();
+      g.popMatrix();
+    }
+
+    for (int i = 0 ; i < stellCount; i++){
+      g.pushMatrix();
+      g.translate(state.stell_pose[i]);
+      g.draw(planetMesh);
+      g.popMatrix();
+    }
   }
 };
 

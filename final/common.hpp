@@ -36,6 +36,16 @@ bool keys[4];
 struct State {
   Vec3f navPosition;
   Quatd navOrientation;
+
+ // Comet
+    Vec3f comet_pose;
+ // Planets
+    Vec3f planet_pose[planetCount];
+    Vec3f planet_quat[planetCount];
+ // dust
+    Vec3f dust_pose[dustCount];
+// Constell
+    Vec3f stell_pose[stellCount] 
 };
 
 #endif

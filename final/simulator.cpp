@@ -259,8 +259,26 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     float d = v.mag();
     c.pos() += (v / d) * (10 - d);
 
+ //for cuttlebone
+ // Observer
     state.navPosition = nav().pos();
     state.navOrientation = nav().quat();
+ // Comet
+    state.comet_pose = c.pos();
+ // Planets
+    for (int i = 0 ; i < planetCount; i++){
+      state.planet_pose[i] = p.pos();
+      state.planet_quat[i] = p.quat();
+    }
+ // dust
+    for (int i = 0 ; i < dustCount; i++){
+      state.dust_pose[i] = d.pos();
+    }
+
+// Constell
+    for (int i = 0 ; i < stellCount; i++){
+      state.stell_pose[i] = stell.pos();
+    }
     maker.set(state);
   }
   void onDraw(Graphics& g) {
