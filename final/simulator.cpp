@@ -15,14 +15,15 @@
         This program code contains creative work of game "CeleSphere."
   */
 
-//#include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
-
+#include "common.hpp"
 #include "alloutil/al_AlloSphereAudioSpatializer.hpp"
 #include "alloutil/al_AlloSphereSpeakerLayout.hpp"
 #include "alloutil/al_Simulator.hpp"
-#include "common.hpp"
-
 #include "allocore/io/al_ControlNav.hpp"
+#include "Gamma/Gamma.h"
+#include "Gamma/SamplePlayer.h"
+#include "Gamma/Noise.h"
+#include "Gamma/Oscillator.h"
 
 using namespace gam;
 using namespace al;
@@ -35,24 +36,64 @@ Mesh planetMesh, backMesh, dustMesh, constellMesh;
 Texture cometTexture, backTexture;
 Texture planetTexture[9];
 
-// Sound Functions
-// Returns frequency ratio of a mode of a bar clamped at one end
-float barClamp(float mode) {
-  float res = mode - 0.5;
-  return 2.81f * res * res;
+/////////////////////////////////////////////////////
+// Sound Structures
+struct Grain
+{
+  // Which input samples are in this grain?
+  //
+  int start;
+  int stop;
+
+  // What is the RMS of those samples?
+  //
+  float RMS;
+};
+
+bool compareGrainByRMS(const Grain &a, const Grain &b)
+{
+  return a.RMS < b.RMS;
 }
 
-// Returns frequency ratio of a mode of a freely vibrating bar
-float barFree(float mode) {
-  float res = mode + 0.5;
-  return 0.441f * res * res;
-}
-struct Comet : Pose {
-  SoundSource* soundSource;
+// A new subclass of gam::SamplePlayer<> that implements only a single
+// additional feature.
+//
+struct SafeSamplePlayer : gam::SamplePlayer<>
+{
+  // "operator[]" is the method for the array indexing operator, like when you
+  // say samplePlayer[i]. The argument is an integer ("unsigned integer of 32
+  // bits type") and the return value is float
+  //
+  float operator[](uint32_t i)
+  {
+    // Normally i must be less than size()
+    //
+    if (i >= size())
+    {
+      // if i is too big, explicitly return zero
+      //
+      return 0.;
+    }
+    else
+    {
+      // otherwise look up sample number i in the usual gam::SamplePlayer<> way
+      //
+      return gam::SamplePlayer<>::operator[](i);
+    }
+  }
+};
+
+/////////////////////////////
+// Visual Structures
+struct Comet : Pose
+{
+  SoundSource *soundSource;
   Mesh comet;
-  Comet() {
+  Comet()
+  {
     // Comet texture
-    if (!image.load(fullPathOrDie("comet.png"))) {
+    if (!image.load(fullPathOrDie("comet.png")))
+    {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
@@ -60,7 +101,8 @@ struct Comet : Pose {
     cometTexture.allocate(image.array());
     soundSource = new SoundSource;
   }
-  void onDraw(Graphics& g) {
+  void onDraw(Graphics &g)
+  {
     g.pushMatrix();
     g.translate(pos());
     g.rotate(quat());
@@ -73,11 +115,13 @@ struct Comet : Pose {
     //    cout << pos() << endl;
   }
 };
-struct Planet : Pose {
-  SoundSource* soundSource;
+struct Planet : Pose
+{
+  SoundSource *soundSource;
   Vec3f vector_to_comet;
   Planet() { soundSource = new SoundSource; }
-  void onDraw(Graphics& g) {
+  void onDraw(Graphics &g)
+  {
     g.pushMatrix();
     g.translate(pos());
     g.rotate(quat());
@@ -86,14 +130,17 @@ struct Planet : Pose {
   }
 };
 
-struct Constellation : Pose {
+struct Constellation : Pose
+{
   Vec3f position;
   Color ton;
-  Constellation() {
+  Constellation()
+  {
     ton = HSV(al::rnd::uniform() * M_PI, 0.1, 1);
     int stellCount = 10;
   }
-  void onDraw(Graphics& g) {
+  void onDraw(Graphics &g)
+  {
     g.pushMatrix();
     g.translate(pos());
     g.color(ton);
@@ -102,16 +149,19 @@ struct Constellation : Pose {
   }
 };
 
-struct Dust : Pose {
-  SoundSource* soundSource;
+struct Dust : Pose
+{
+  SoundSource *soundSource;
   Vec3f position;
   Color ton;
-  Dust() {
+  Dust()
+  {
     soundSource = new SoundSource;
     ton = HSV(al::rnd::uniform() * M_PI, 0.1, 1);
   }
 
-  void onDraw(Graphics& g) {
+  void onDraw(Graphics &g)
+  {
     g.pushMatrix();
     g.translate(pos());
     g.color(ton);
@@ -120,7 +170,8 @@ struct Dust : Pose {
   }
 };
 
-struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
+struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
+{
   bool simulate = true;
   Material material;
   Light light;
@@ -129,35 +180,127 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   Planet p;
   Dust dust;
 
+  // Visual
   vector<Planet> planetVect;
   vector<Constellation> constellVect;
   vector<Dust> dustVect;
-  float distance_to_comet[9];
+  float distance_to_comet[8];
   float control, azi_control;
+
+  // Audio
+  SafeSamplePlayer samplePlayer;
+  SafeSamplePlayer GrainsPlayer[8];
+  std::vector<Grain> grainArray;
   // Gamma
-  static const int Nc = 9;  // # of chimes
-  static const int Nm = 5;  // # of modes
+  static const int Nc = 9; // # of chimes
+  static const int Nm = 5; // # of modes
   SineDs<> src;
   Accum<> timer;
-  Chorus<> chr1, chr2;  // chorusing for more natural beating
+  Chorus<> chr1, chr2; // chorusing for more natural beating
 
-  // OSC variables
+  // OSC + Cuttlebone
   Vec3f cell_gravity;
   State state;
   cuttlebone::Maker<State> maker;
+  void printGrains()
+  {
+    int i = 0;
+    for (std::vector<Grain>::iterator it = grainArray.begin();
+         it != grainArray.end(); ++it)
+    {
+      std::cout << "  grainArray[" << i << "] = [start:" << it->start
+                << ", stop:" << it->stop << ", RMS:" << it->RMS << "]" << endl;
+      ++i;
+    }
+  }
+
   AlloApp()
       : maker(Simulator::defaultBroadcastIP()),
         InterfaceServerClient(Simulator::defaultInterfaceServerIP()),
         chr1(0.10),
-        chr2(0.11) {
+        chr2(0.11)
+  {
+
     // Gamma
     src.resize(Nc * Nm);
     timer.finish();
     // OSC
     cell_gravity = Vec3f(0, 0, 0);
 
+    for (int j = 0; j < 7; j++)
+    {
+      oss << "planet_" << j << ".wav";
+      string var = oss.str();
+      samplePlayer.load(fullPathOrDie(var).c_str());
+      int grainSize = samplePlayer.size() / NUM_GRAINS;
+      if ((grainSize * NUM_GRAINS) < samplePlayer.size())
+      {
+        ++grainSize;
+      }
+      grainArray.resize(NUM_GRAINS);
+
+      // Loop over all grains computing the RMS of each and saving it
+      //
+      for (int g = 0; g < NUM_GRAINS; ++g)
+      {
+        float sumOfSquares = 0;
+        for (int i = 0; i < grainSize; ++i)
+        {
+          // Get sample number i from grain number g again we rely on it being OK
+          // to read past the end of the buffer
+          //
+          float s = samplePlayer[g * grainSize + i];
+          // Add the square of s to our running total
+          //
+          sumOfSquares += s * s;
+        }
+
+        // Now we've finished looping over all the sample in this block, so the
+        // following code happens once per block, not once per sample.
+        // sumOfSquares / grainSize is the mean squared sample value; the sqrt of
+        // that is the RMS.
+        //
+        float RMS = sqrt(sumOfSquares / grainSize);
+
+        // Record everything about this particular grain:
+        // 1) Starting position (in samples) is g*grainsize;
+        // 2) Ending position (in samples) is the starting position plus
+        // grainSize-1
+        // 3) The RMS of this grain is what we just computed
+        grainArray[g].start = g * grainSize;
+        grainArray[g].stop = g * grainSize + (grainSize - 1);
+        grainArray[g].RMS = RMS;
+      }
+      // Now sort the grains in increasing order of RMS
+      //
+      sort(grainArray.begin(), grainArray.end(), compareGrainByRMS);
+    //  cout << j << endl;
+    //  printGrains();
+      gam::Array<float> outArray;
+      outArray.resize(NUM_GRAINS * grainSize, 0);
+
+      for (int grain = 0; grain < NUM_GRAINS; ++grain)
+      {
+        Grain &g = grainArray[grain];
+        int whereToPutThisGrain = grain * grainSize;
+        for (int i = 0; i < grainSize; ++i)
+        {
+          outArray[whereToPutThisGrain + i] = samplePlayer[g.start + i];
+        }
+      }
+      GrainsPlayer[j].buffer(outArray, samplePlayer.frameRate(), 1);
+      samplePlayer.phase(0.99999);
+      GrainsPlayer[j].phase(0.99999);
+
+      oss.str("");
+      oss.clear();
+    }
+
+    ///////////////////////////////////////////////////////
+    // Visual
     // Background space texture
-    if (!image.load(fullPathOrDie("back.jpg"))) {
+    if (!image.load(fullPathOrDie("back.jpg")))
+    {
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
@@ -185,30 +328,33 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     AlloSphereAudioSpatializer::initSpatialization();
     // if gamma
     gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
-    //  scene()->addSource(aSoundSource);
-    //   aSoundSource.dopplerType(DOPPLER_NONE);
+    // scene()->addSource(aSoundSource);
+    // aSoundSource.dopplerType(DOPPLER_NONE);
     // scene()->usePerSampleProcessing(true);
-    //   scene()->usePerSampleProcessing(false);
+    // scene()->usePerSampleProcessing(false);
 
     light.pos(0, 0, 100);
     nav().pos(0, 0, 100);
 
     planetVect.resize(planetCount);
-    dustVect.resize(dustCount);  // make all the dusts
+    dustVect.resize(dustCount); // make all the dusts
     constellVect.resize(stellCount);
 
-    for (auto& s : constellVect) {
+    for (auto &s : constellVect)
+    {
       s.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
       s.pos() *= al::rnd::uniform(10.0, 300.0) * (int(rand() % 2) * 2 - 1);
     }
 
-    for (auto& du : dustVect) {
+    for (auto &du : dustVect)
+    {
       du.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
       du.pos() *= al::rnd::uniform(10.0, 300.0) * (int(rand() % 2) * 2 - 1);
     }
     int i = 0;
     char str[128];
-    for (auto& p : planetVect) {
+    for (auto &p : planetVect)
+    {
       p.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
       p.pos() *= al::rnd::uniform(400.0, 1000.0) * (int(rand() % 2) * 2 - 1);
       p.quat() = Quatd(al::rnd::uniformS(), al::rnd::uniformS(),
@@ -218,7 +364,8 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       distance_to_comet[i] = p.vector_to_comet.mag();
       oss << "planet_" << i << ".jpg";
       string var = oss.str();
-      if (!image.load(fullPathOrDie(var))) {
+      if (!image.load(fullPathOrDie(var)))
+      {
         fprintf(stderr, "FAIL\n");
         exit(1);
       }
@@ -234,7 +381,8 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     al::InterfaceServerClient::oscRecv().start();
   }
 
-  void onAnimate(double dt) {
+  void onAnimate(double dt)
+  {
     while (InterfaceServerClient::oscRecv().recv())
       ;
     nav().faceToward(c);
@@ -251,7 +399,8 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     else
       nav().moveR(0);
     // in any cases, comet goes forward
-    if (control) nav().moveF(0.05);
+    if (control)
+      nav().moveF(0.05);
 
     if (azi_control < -0.5)
       nav().moveU(-0.02);
@@ -268,26 +417,30 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     state.comet_pose = c.pos();
     // Planets
     unsigned i = 0;
-    for (auto& p : planetVect) {
+    for (auto &p : planetVect)
+    {
       state.planet_pose[i] = p.pos();
       state.planet_quat[i] = p.quat();
       i++;
     }
     // dust
     i = 0;
-    for (auto& dust : dustVect) {
+    for (auto &dust : dustVect)
+    {
       state.dust_pose[i] = dust.pos();
       i++;
     }
     // Constell
     i = 0;
-    for (auto& stell : constellVect) {
+    for (auto &stell : constellVect)
+    {
       state.stell_pose[i] = stell.pos();
       i++;
     }
     maker.set(state);
   }
-  void onDraw(Graphics& g) {
+  void onDraw(Graphics &g)
+  {
     // Background Mesh Draw
     g.lighting(false);
     g.depthMask(false);
@@ -300,18 +453,21 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     g.depthMask(true);
     material();
     light();
-    light.pos(nav().pos() - Vec3f(0, 0, 100));  // turns lighting back on
+    light.pos(nav().pos() - Vec3f(0, 0, 100)); // turns lighting back on
 
     // Object Draw
-    for (auto& d : dustVect) d.onDraw(g);
+    for (auto &d : dustVect)
+      d.onDraw(g);
     int i = 0;
-    for (auto& p : planetVect) {
+    for (auto &p : planetVect)
+    {
       planetTexture[i].bind();
       p.onDraw(g);
       planetTexture[i].unbind();
       i += 1;
     }
-    for (auto& s : constellVect) s.onDraw(g);
+    for (auto &s : constellVect)
+      s.onDraw(g);
     c.onDraw(g);
 
     // OSC dynami                  cs
@@ -321,55 +477,32 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     cout << fixed;
     cout.precision(6);
   }
-  // Audio
-  // SoundSource aSoundSource;
-  virtual void onSound(al::AudioIOData& io) {
+
+  ////////////////////////////
+  //  Audio
+  virtual void onSound(al::AudioIOData &io)
+  {
     gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
-    float2 tmp;
-    while (io()) {
-      for (int i = 0; i < planetCount; i++) {
-        if (timer()) {
-          static double freqs[Nc] = {
-              scl::freq("c4"), scl::freq("f4"), scl::freq("g4"),
-              scl::freq("a4"), scl::freq("d5"), scl::freq("f5"),
-              scl::freq("g5"), scl::freq("a5"), scl::freq("d6"),
-          };
-          float f0 = freqs[i];
-          float A = 100 / distance_to_comet[i];
-
-          //      osc #   frequency      amplitude               length
-          src.set(i * Nm + 0, f0 * 1.000, A * 1.0 * gam::rnd::uni(0.8, 1.),
-                  1600.0 / f0);
-          src.set(i * Nm + 1, f0 * barFree(2), A * 0.5 * gam::rnd::uni(0.5, 1.),
-                  1200.0 / f0);
-          src.set(i * Nm + 2, f0 * barFree(3), A * 0.4 * gam::rnd::uni(0.5, 1.),
-                  800.0 / f0);
-          src.set(i * Nm + 3, f0 * barFree(4), A * 0.3 * gam::rnd::uni(0.5, 1.),
-                  400.0 / f0);
-          src.set(i * Nm + 4, f0 * barFree(5), A * 0.2 * gam::rnd::uni(0.5, 1.),
-                  200.0 / f0);
-
-          timer.period(gam::rnd::uni(0.01, 1.5));
-        }
-        tmp += src();
+    float s;
+    float tmp = 0;
+    while (io())
+    {
+      for (unsigned i = 0; i < 7; i++)
+      {
+        float sampForPlayback = 0.001 * GrainsPlayer[i]();
+        tmp += sampForPlayback;
       }
-      float2 s = tmp * 0.1;
-
-      s.x += chr1(s.x) * 0.02;
-      s.y += chr2(s.y) * 0.02;
-
-      io.out(0) = s.x;
-      io.out(1) = s.y;
-      //  cout << s.x << endl;
+      io.out(0) = io.out(1) = tmp;
+      cout << tmp << endl;
+      listener()->pose(nav());
+  //    scene()->render(io);
     }
-    listener()->pose(nav());
-    io.frame(0);
-    scene()->render(io);
   }
-
-  void onMessage(osc::Message& m) {
+  void onMessage(osc::Message &m)
+  {
     Vec3f o, r;
-    if (m.addressPattern() == "/gyrosc/grav") {
+    if (m.addressPattern() == "/gyrosc/grav")
+    {
       m >> o.x;
       m >> o.y;
       m >> o.z;
@@ -378,7 +511,8 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   }
 };
 
-int main() {
+int main()
+{
   AlloApp app;
   app.AlloSphereAudioSpatializer::audioIO().start();
   app.InterfaceServerClient::connect();

@@ -18,7 +18,7 @@ float dragFactor = 0.1;         //
 float timeStep = 0.1;           // keys change this value for effect
 float scaleFactor = 0.05;       // resizes the entire scene
 // Planet const.
-int planetCount = 9;
+int planetCount = 8;
 float planetRadius = 20;  //
 float planetRange = 500;
 
@@ -33,6 +33,9 @@ float dustRange = 1500;
 float dustRadius = 0.5;
 bool keys[4];
 
+// Audio. Granular
+#define NUM_GRAINS (20)
+
 struct State {
   Vec3f navPosition;
   Quatd navOrientation;
@@ -40,8 +43,8 @@ struct State {
   // Comet
   Vec3f comet_pose;
   // Planets
-  Vec3f planet_pose[9];
-  Quatd planet_quat[9];
+  Vec3f planet_pose[8];
+  Quatd planet_quat[8];
   // dust
   Vec3f dust_pose[500];
   // Constell
