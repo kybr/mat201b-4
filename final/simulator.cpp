@@ -189,7 +189,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
 
   // Audio
   SafeSamplePlayer samplePlayer;
-  SafeSamplePlayer GrainsPlayer[8];
+  SafeSamplePlayer GrainsPlayer;
   std::vector<Grain> grainArray;
   // Gamma
   static const int Nc = 9; // # of chimes
@@ -227,7 +227,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     // OSC
     cell_gravity = Vec3f(0, 0, 0);
 
-    for (int j = 0; j < 7; j++)
+    for (int j = 0; j < 1; j++)
     {
       oss << "planet_" << j << ".wav";
       string var = oss.str();
@@ -275,7 +275,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
       //
       sort(grainArray.begin(), grainArray.end(), compareGrainByRMS);
     //  cout << j << endl;
-    //  printGrains();
+      printGrains();
       gam::Array<float> outArray;
       outArray.resize(NUM_GRAINS * grainSize, 0);
 
@@ -288,9 +288,9 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
           outArray[whereToPutThisGrain + i] = samplePlayer[g.start + i];
         }
       }
-      GrainsPlayer[j].buffer(outArray, samplePlayer.frameRate(), 1);
+      GrainsPlayer.buffer(outArray, samplePlayer.frameRate(), 1);
       samplePlayer.phase(0.99999);
-      GrainsPlayer[j].phase(0.99999);
+      GrainsPlayer.phase(0.99999);
 
       oss.str("");
       oss.clear();
@@ -484,16 +484,16 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
   {
     gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
     float s;
-    float tmp = 0;
     while (io())
     {
-      for (unsigned i = 0; i < 7; i++)
+    float tmp = 0;
+//      for (unsigned i = 0; i < 1; i++)
       {
-        float sampForPlayback = 0.001 * GrainsPlayer[i]();
+        float sampForPlayback = 1 * GrainsPlayer();
         tmp += sampForPlayback;
       }
-      io.out(0) = io.out(1) = tmp;
-      cout << tmp << endl;
+//      io.out(0) = io.out(1) = tmp;
+ //     cout << tmp << endl;
       listener()->pose(nav());
   //    scene()->render(io);
     }
