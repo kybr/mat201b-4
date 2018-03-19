@@ -245,9 +245,9 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
 
     // OSC control
     if (control < -0.5)
-      nav().moveR(-0.05);
+      nav().moveR(-0.03);
     else if (control > 0.5)
-      nav().moveR(+0.05);
+      nav().moveR(+0.03);
     else
       nav().moveR(0);
     // in any cases, comet goes forward
@@ -255,7 +255,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
 
     if (azi_control < -0.5)
       nav().moveU(-0.02);
-    else if (control > 0.5)
+    else if (azi_control > 0.5)
       nav().moveU(+0.02);
     else
       nav().moveU(0);
