@@ -36,53 +36,6 @@ Mesh planetMesh, backMesh, dustMesh, constellMesh;
 Texture cometTexture, backTexture;
 Texture planetTexture[9];
 
-/////////////////////////////////////////////////////
-// Sound Structures
-struct Grain
-{
-  // Which input samples are in this grain?
-  //
-  int start;
-  int stop;
-
-  // What is the RMS of those samples?
-  //
-  float RMS;
-};
-
-bool compareGrainByRMS(const Grain &a, const Grain &b)
-{
-  return a.RMS < b.RMS;
-}
-
-// A new subclass of gam::SamplePlayer<> that implements only a single
-// additional feature.
-//
-struct SafeSamplePlayer : gam::SamplePlayer<>
-{
-  // "operator[]" is the method for the array indexing operator, like when you
-  // say samplePlayer[i]. The argument is an integer ("unsigned integer of 32
-  // bits type") and the return value is float
-  //
-  float operator[](uint32_t i)
-  {
-    // Normally i must be less than size()
-    //
-    if (i >= size())
-    {
-      // if i is too big, explicitly return zero
-      //
-      return 0.;
-    }
-    else
-    {
-      // otherwise look up sample number i in the usual gam::SamplePlayer<> way
-      //
-      return gam::SamplePlayer<>::operator[](i);
-    }
-  }
-};
-
 /////////////////////////////
 // Visual Structures
 struct Comet : Pose
@@ -188,121 +141,80 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
   float control, azi_control;
 
   // Audio
-  SafeSamplePlayer samplePlayer;
-  SafeSamplePlayer GrainsPlayer;
-  std::vector<Grain> grainArray;
+  SamplePlayer<float, gam::ipl::Linear, phsInc::Loop> grainArray_0, grainArray_1, grainArray_2, grainArray_3, grainArray_4, grainArray_5, grainArray_6;
+
+  gam::OnePole<> smoothRate_0,smoothRate_1,smoothRate_2,smoothRate_3,smoothRate_4,smoothRate_5,smoothRate_6;
+
+//  Mesh waveform, frame, region, cursor;
+  double timer;
+
   // Gamma
-  static const int Nc = 9; // # of chimes
-  static const int Nm = 5; // # of modes
-  SineDs<> src;
-  Accum<> timer;
-  Chorus<> chr1, chr2; // chorusing for more natural beating
+
 
   // OSC + Cuttlebone
   Vec3f cell_gravity;
   State state;
   cuttlebone::Maker<State> maker;
-  void printGrains()
-  {
-    int i = 0;
-    for (std::vector<Grain>::iterator it = grainArray.begin();
-         it != grainArray.end(); ++it)
-    {
-      std::cout << "  grainArray[" << i << "] = [start:" << it->start
-                << ", stop:" << it->stop << ", RMS:" << it->RMS << "]" << endl;
-      ++i;
-    }
-  }
 
   AlloApp()
       : maker(Simulator::defaultBroadcastIP()),
-        InterfaceServerClient(Simulator::defaultInterfaceServerIP()),
-        chr1(0.10),
-        chr2(0.11)
+        InterfaceServerClient(Simulator::defaultInterfaceServerIP())
   {
+    //Sound
+    timer = 0;
+    /*
+    smoothRate_0.freq(13.14159);
+    smoothRate_1.freq(13.14159);
+    smoothRate_2.freq(13.14159);
+    smoothRate_3.freq(13.14159);
+    smoothRate_4.freq(13.14159);
+    smoothRate_5.freq(13.14159);
+    smoothRate_6.freq(13.14159);
+    */
+    smoothRate_0.freq(100.14159);
+    smoothRate_1.freq(100.14159);
+    smoothRate_2.freq(100.14159);
+    smoothRate_3.freq(100.14159);
+    smoothRate_4.freq(100.14159);
+    smoothRate_5.freq(100.14159);
+    smoothRate_6.freq(100.14159);
+
+    smoothRate_0 = 1.0;
+    smoothRate_1 = 1.0;
+    smoothRate_2 = 1.0;
+    smoothRate_3 = 1.0; 
+    smoothRate_4 = 1.0;
+    smoothRate_5 = 1.0;
+    smoothRate_6 = 1.0;
 
     // Gamma
-    src.resize(Nc * Nm);
-    timer.finish();
+    
     // OSC
     cell_gravity = Vec3f(0, 0, 0);
+    
+  // Import wav files for each planet
+  // planet_0
+  grainArray_0.load(fullPathOrDie("planet_0.wav").c_str());
+  // planet_1
+  grainArray_1.load(fullPathOrDie("planet_1.wav").c_str());
+  // planet_2
+  grainArray_2.load(fullPathOrDie("planet_2.wav").c_str());
+  // planet_3
+  grainArray_3.load(fullPathOrDie("planet_3.wav").c_str());
+  // planet_4
+  grainArray_4.load(fullPathOrDie("planet_4.wav").c_str());
+  // planet_5
+  grainArray_5.load(fullPathOrDie("planet_5.wav").c_str());
+  // planet_6
+  grainArray_6.load(fullPathOrDie("planet_6.wav").c_str());
 
-    for (int j = 0; j < 1; j++)
-    {
-      oss << "planet_" << j << ".wav";
-      string var = oss.str();
-      samplePlayer.load(fullPathOrDie(var).c_str());
-      int grainSize = samplePlayer.size() / NUM_GRAINS;
-      if ((grainSize * NUM_GRAINS) < samplePlayer.size())
-      {
-        ++grainSize;
-      }
-      grainArray.resize(NUM_GRAINS);
-
-      // Loop over all grains computing the RMS of each and saving it
-      //
-      for (int g = 0; g < NUM_GRAINS; ++g)
-      {
-        float sumOfSquares = 0;
-        for (int i = 0; i < grainSize; ++i)
-        {
-          // Get sample number i from grain number g again we rely on it being OK
-          // to read past the end of the buffer
-          //
-          float s = samplePlayer[g * grainSize + i];
-          // Add the square of s to our running total
-          //
-          sumOfSquares += s * s;
-        }
-
-        // Now we've finished looping over all the sample in this block, so the
-        // following code happens once per block, not once per sample.
-        // sumOfSquares / grainSize is the mean squared sample value; the sqrt of
-        // that is the RMS.
-        //
-        float RMS = sqrt(sumOfSquares / grainSize);
-
-        // Record everything about this particular grain:
-        // 1) Starting position (in samples) is g*grainsize;
-        // 2) Ending position (in samples) is the starting position plus
-        // grainSize-1
-        // 3) The RMS of this grain is what we just computed
-        grainArray[g].start = g * grainSize;
-        grainArray[g].stop = g * grainSize + (grainSize - 1);
-        grainArray[g].RMS = RMS;
-      }
-      // Now sort the grains in increasing order of RMS
-      //
-      sort(grainArray.begin(), grainArray.end(), compareGrainByRMS);
-    //  cout << j << endl;
-      printGrains();
-      gam::Array<float> outArray;
-      outArray.resize(NUM_GRAINS * grainSize, 0);
-
-      for (int grain = 0; grain < NUM_GRAINS; ++grain)
-      {
-        Grain &g = grainArray[grain];
-        int whereToPutThisGrain = grain * grainSize;
-        for (int i = 0; i < grainSize; ++i)
-        {
-          outArray[whereToPutThisGrain + i] = samplePlayer[g.start + i];
-        }
-      }
-      GrainsPlayer.buffer(outArray, samplePlayer.frameRate(), 1);
-      samplePlayer.phase(0.99999);
-      GrainsPlayer.phase(0.99999);
-
-      oss.str("");
-      oss.clear();
-    }
-
-    ///////////////////////////////////////////////////////
-    // Visual
-    // Background space texture
-    if (!image.load(fullPathOrDie("back.jpg")))
-    {
-      fprintf(stderr, "FAIL\n");
-      exit(1);
+  ///////////////////////////////////////////////////////
+  // Visual
+  // Background space texture
+  if (!image.load(fullPathOrDie("back.jpg")))
+  {
+    fprintf(stderr, "FAIL\n");
+    exit(1);
     }
     backTexture.allocate(image.array());
 
@@ -383,6 +295,127 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
 
   void onAnimate(double dt)
   {
+    timer += dt;
+    // Granular synth
+  if (timer > 0.1) {
+      timer -= 0.1;
+
+      float begin, end;
+      int begintoend = 200;
+      // Planet0
+      for (int t = 0; t < begintoend; t++) {
+        begin = al::rnd::uniform(grainArray_0.frames());
+        end = al::rnd::uniform(grainArray_0.frames());
+        if (abs(begin - end) < begintoend*2) break;
+        if (abs(grainArray_0[int(begin)] - grainArray_0[int(end)]) < 0.125) break;  }
+      if (begin > end) {
+        float t = begin;
+        begin = end;
+        end = t;  }
+      grainArray_0.min(begin);
+      grainArray_0.max(end);
+      float r = pow(1, al::rnd::uniformS(2.0f));
+      if (al::rnd::prob(0.0)) r *= -1;
+      smoothRate_0 = r;
+      grainArray_0.reset();
+      // Planet1
+      for (int t = 0; t < begintoend; t++) {
+        begin = al::rnd::uniform(grainArray_1.frames());
+        end = al::rnd::uniform(grainArray_1.frames());
+        if (abs(begin - end) < begintoend*2) break;
+        if (abs(grainArray_1[int(begin)] - grainArray_1[int(end)]) < 0.125) break;  }
+      if (begin > end) {
+        float t = begin;
+        begin = end;
+        end = t;     }
+      grainArray_1.min(begin);
+      grainArray_1.max(end);
+      r = pow(1, al::rnd::uniformS(2.0f));
+      if (al::rnd::prob(0.0)) r *= -1;
+      smoothRate_1 = r;
+      grainArray_1.reset();
+      // Planet2
+      for (int t = 0; t < begintoend; t++) {
+        begin = al::rnd::uniform(grainArray_2.frames());
+        end = al::rnd::uniform(grainArray_2.frames());
+        if (abs(begin - end) < begintoend*2) break;
+        if (abs(grainArray_2[int(begin)] - grainArray_2[int(end)]) < 0.125) break;    }
+      if (begin > end) {
+        float t = begin;
+        begin = end;
+        end = t;      }
+      grainArray_2.min(begin);
+      grainArray_2.max(end);
+      r = pow(1, al::rnd::uniformS(2.0f));
+      if (al::rnd::prob(0.0)) r *= -1;
+      smoothRate_2 = r;
+      grainArray_2.reset();
+      // Planet3
+      for (int t = 0; t < begintoend; t++) {
+        begin = al::rnd::uniform(grainArray_3.frames());
+        end = al::rnd::uniform(grainArray_3.frames());
+        if (abs(begin - end) < begintoend*2) break;
+        if (abs(grainArray_3[int(begin)] - grainArray_3[int(end)]) < 0.125) break;    }
+      if (begin > end) {
+        float t = begin;
+        begin = end;
+        end = t;      }
+      grainArray_3.min(begin);
+      grainArray_3.max(end);
+      r = pow(1, al::rnd::uniformS(2.0f));
+      if (al::rnd::prob(0.0)) r *= -1;
+      smoothRate_3 = r;
+      grainArray_3.reset();
+      // Planet4
+      for (int t = 0; t < begintoend; t++) {
+        begin = al::rnd::uniform(grainArray_4.frames());
+        end = al::rnd::uniform(grainArray_4.frames());
+        if (abs(begin - end) < begintoend*2) break;
+        if (abs(grainArray_4[int(begin)] - grainArray_4[int(end)]) < 0.125) break;    }
+      if (begin > end) {
+        float t = begin;
+        begin = end;
+        end = t;      }
+      grainArray_4.min(begin);
+      grainArray_4.max(end);
+      r = pow(1, al::rnd::uniformS(2.0f));
+      if (al::rnd::prob(0.0)) r *= -1;
+      smoothRate_4 = r;
+      grainArray_4.reset();
+      // Planet5
+      for (int t = 0; t < begintoend; t++) {
+        begin = al::rnd::uniform(grainArray_5.frames());
+        end = al::rnd::uniform(grainArray_5.frames());
+        if (abs(begin - end) < begintoend*2) break;
+        if (abs(grainArray_5[int(begin)] - grainArray_5[int(end)]) < 0.125) break;    }
+      if (begin > end) {
+        float t = begin;
+        begin = end;
+        end = t;      }
+      grainArray_5.min(begin);
+      grainArray_5.max(end);
+      r = pow(1, al::rnd::uniformS(2.0f));
+      if (al::rnd::prob(0.0)) r *= -1;
+      smoothRate_5 = r;
+      grainArray_5.reset();
+      // Planet6
+      for (int t = 0; t < begintoend; t++) {
+        begin = al::rnd::uniform(grainArray_6.frames());
+        end = al::rnd::uniform(grainArray_6.frames());
+        if (abs(begin - end) < begintoend*2) break;
+        if (abs(grainArray_6[int(begin)] - grainArray_6[int(end)]) < 0.125) break;      }
+      if (begin > end) {
+        float t = begin;
+        begin = end;
+        end = t;      }
+      grainArray_6.min(begin);
+      grainArray_6.max(end);
+      r = pow(1, al::rnd::uniformS(2.0f));
+      if (al::rnd::prob(0.0)) r *= -1;
+      smoothRate_6 = r;
+      grainArray_6.reset();
+    }
+
     while (InterfaceServerClient::oscRecv().recv())
       ;
     nav().faceToward(c);
@@ -483,17 +516,21 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
   virtual void onSound(al::AudioIOData &io)
   {
     gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
-    float s;
     while (io())
     {
-    float tmp = 0;
-//      for (unsigned i = 0; i < 1; i++)
-      {
-        float sampForPlayback = 1 * GrainsPlayer();
-        tmp += sampForPlayback;
-      }
-//      io.out(0) = io.out(1) = tmp;
- //     cout << tmp << endl;
+      float tmp = 0;
+      grainArray_0.rate(smoothRate_0());
+      grainArray_1.rate(smoothRate_1());
+      grainArray_2.rate(smoothRate_2());
+      grainArray_3.rate(smoothRate_3());
+      grainArray_4.rate(smoothRate_4());
+      grainArray_5.rate(smoothRate_5());
+      grainArray_6.rate(smoothRate_6());
+      float sl = ( grainArray_0() + grainArray_1() + grainArray_2() )  / 3;
+      float sr = ( grainArray_3() + grainArray_4() + grainArray_5() + grainArray_6() ) / 4;
+
+      io.out(0) = sl * 0.5;
+      io.out(1) = sr * 0.5;
       listener()->pose(nav());
   //    scene()->render(io);
     }
