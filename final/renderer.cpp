@@ -78,7 +78,7 @@ struct MyApp : OmniStereoGraphicsRenderer {
     }
     backTexture.allocate(image.array());
 
-    addSphereWithTexcoords(comet, 10);
+    addSphereWithTexcoords(comet, 50);
     addSphereWithTexcoords(backMesh, 999);
     addSphereWithTexcoords(planetMesh, 50);
     addSphere(constellMesh, 0.05);
@@ -123,7 +123,7 @@ struct MyApp : OmniStereoGraphicsRenderer {
   void onAnimate(double dt) {
     taker.get(state);
     // pose = nav();
-    pose = Pose(state.navPosition - Vec3f(0,0,100), state.navOrientation);
+    pose = Pose(state.navPosition, state.navOrientation);
   }
 
   void onDraw(Graphics& g) {
@@ -131,21 +131,19 @@ struct MyApp : OmniStereoGraphicsRenderer {
    // comet 
     shader().uniform("COLOR", Color(1));
     shader().uniform("texture", 1.0);
-    shader().uniform("lighting", 0.0);
-    g.lighting(false);
-    g.depthMask(false);
+    shader().uniform("lighting", 0.1);
     /* */g.pushMatrix();
     g.translate(state.comet_pose);
-    g.rotate(nav().quat());
+  //  g.rotate(nav().quat());
     cometTexture.bind();
     g.scale(scaleFactor);
     g.draw(comet);
     g.scale(1 / scaleFactor);
     cometTexture.unbind();
-cout << state.navPosition  << state.comet_pose << endl;
     /* */g.popMatrix();
-    g.depthMask(true);
-    g.lighting(true);
+// Position check
+// cout << state.navPosition  << state.comet_pose << state.planet_pose[1]<< endl; 
+
     
 // Back
     shader().uniform("COLOR", Color(1));
@@ -177,10 +175,10 @@ cout << state.navPosition  << state.comet_pose << endl;
       planetTexture[i].unbind();
       g.popMatrix();
     }
-
+  // Dusts & COnstellations
     shader().uniform("texture", 0.0);
-    shader().uniform("lighting", 0.0);
-    shader().uniform("COLOR", Color(1));
+    shader().uniform("lighting", 0.1);
+    shader().uniform("COLOR", Color(0));
     for (int i = 0; i < dustCount; i++) {
       g.pushMatrix();
       g.translate(state.dust_pose[i]);
