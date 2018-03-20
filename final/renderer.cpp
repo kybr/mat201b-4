@@ -65,7 +65,9 @@ struct MyApp : OmniStereoGraphicsRenderer {
   MyApp() {
     // Comet texture load
         // Comet texture
-    if (!image.load(fullPathOrDie("comet.png"))) {
+//    if (!image.load(fullPathOrDie("comet.png"))) {
+    if (!image.load(fullPathOrDie("comet.jpg"))) {
+
       fprintf(stderr, "FAIL\n");
       exit(1);
     }
@@ -134,7 +136,7 @@ struct MyApp : OmniStereoGraphicsRenderer {
     shader().uniform("lighting", 0.1);
     /* */g.pushMatrix();
     g.translate(state.comet_pose);
-  //  g.rotate(nav().quat());
+    g.rotate(state.comet_quat);
     cometTexture.bind();
     g.scale(scaleFactor);
     g.draw(comet);

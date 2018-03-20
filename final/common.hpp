@@ -34,7 +34,6 @@ float dustRadius = 0.5;
 bool keys[4];
 
 // Audio. Granular
-#define NUM_GRAINS (20)
 
 struct State {
   Vec3f navPosition;
@@ -42,6 +41,7 @@ struct State {
 
   // Comet
   Vec3f comet_pose;
+  Quatd comet_quat;
   // Planets
   Vec3f planet_pose[8];
   Quatd planet_quat[8];
