@@ -1,6 +1,6 @@
 
-// Ben . 2018.03.20. CeleSphere ver.1.01
-// OSC controls the Comet
+// Ben . 2018.03.05. CeleSphere ver.0.01
+// Press t,f,g,h to control the Comet
 
 /*  Copyright 2018 [Myungin Lee]
    Licensed under the Apache License, Version 2.0 (the "License");
@@ -289,7 +289,6 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     {
       timer -= cell_gravity.x + 2.5;
 
-
       float begin, end;
       int begintoend = 100;
       float threshold = 0.125;
@@ -448,7 +447,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
       vector_to_comet[i] = c.pos() - state.planet_pose[i];
       distance_to_comet[i] = vector_to_comet[i].mag();
       float comet_head = atan(v.x / v.z);
-      angle_to_comet[i] = atan((vector_to_comet[i].x / vector_to_comet[i].z - comet_head));
+      angle_to_comet[i] = atan(abs(vector_to_comet[i].x / vector_to_comet[i].z - comet_head));
     }
     // cout << c.pos() << endl;
 

@@ -23,7 +23,7 @@ float planetRadius = 20;  //
 float planetRange = 500;
 
 // Constellation const.
-int stellCount = 2000;
+int stellCount = 500;
 // Comet const.
 float cometRadius = 20;
 float steerFactor = 100;
