@@ -20,14 +20,15 @@
 #include "alloutil/al_AlloSphereSpeakerLayout.hpp"
 #include "alloutil/al_Simulator.hpp"
 #include "allocore/io/al_ControlNav.hpp"
-#include "Gamma/Gamma.h"
+//#include "Gamma/Gamma.h"
 #include "Gamma/SamplePlayer.h"
-#include "Gamma/Noise.h"
 #include "Gamma/Oscillator.h"
+#include "Gamma/Filter.h"
+//#include "Gamma/Noise.h"
 
-using namespace gam;
 using namespace al;
 using namespace std;
+using namespace gam;
 
 ostringstream oss;
 Image image;
@@ -35,6 +36,8 @@ Image image;
 Mesh planetMesh, backMesh, dustMesh, constellMesh;
 Texture cometTexture, backTexture;
 Texture planetTexture[9];
+Vec3f vector_to_comet[8];
+float angle_to_comet[8];
 
 /////////////////////////////
 // Visual Structures
@@ -45,7 +48,9 @@ struct Comet : Pose
   Comet()
   {
     // Comet texture
-    if (!image.load(fullPathOrDie("comet.png")))
+    //    if (!image.load(fullPathOrDie("comet.png")))
+    if (!image.load(fullPathOrDie("comet.jpg")))
+
     {
       fprintf(stderr, "FAIL\n");
       exit(1);
@@ -71,7 +76,6 @@ struct Comet : Pose
 struct Planet : Pose
 {
   SoundSource *soundSource;
-  Vec3f vector_to_comet;
   Planet() { soundSource = new SoundSource; }
   void onDraw(Graphics &g)
   {
@@ -143,13 +147,12 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
   // Audio
   SamplePlayer<float, gam::ipl::Linear, phsInc::Loop> grainArray_0, grainArray_1, grainArray_2, grainArray_3, grainArray_4, grainArray_5, grainArray_6;
 
-  gam::OnePole<> smoothRate_0,smoothRate_1,smoothRate_2,smoothRate_3,smoothRate_4,smoothRate_5,smoothRate_6;
+  gam::OnePole<> smoothRate_0, smoothRate_1, smoothRate_2, smoothRate_3, smoothRate_4, smoothRate_5, smoothRate_6;
 
-//  Mesh waveform, frame, region, cursor;
+  //  Mesh waveform, frame, region, cursor;
   double timer;
 
   // Gamma
-
 
   // OSC + Cuttlebone
   Vec3f cell_gravity;
@@ -162,7 +165,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
   {
     //Sound
     timer = 0;
-    /*
+
     smoothRate_0.freq(13.14159);
     smoothRate_1.freq(13.14159);
     smoothRate_2.freq(13.14159);
@@ -170,51 +173,36 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     smoothRate_4.freq(13.14159);
     smoothRate_5.freq(13.14159);
     smoothRate_6.freq(13.14159);
-    */
-    smoothRate_0.freq(100.14159);
-    smoothRate_1.freq(100.14159);
-    smoothRate_2.freq(100.14159);
-    smoothRate_3.freq(100.14159);
-    smoothRate_4.freq(100.14159);
-    smoothRate_5.freq(100.14159);
-    smoothRate_6.freq(100.14159);
 
     smoothRate_0 = 1.0;
     smoothRate_1 = 1.0;
     smoothRate_2 = 1.0;
-    smoothRate_3 = 1.0; 
+    smoothRate_3 = 1.0;
     smoothRate_4 = 1.0;
     smoothRate_5 = 1.0;
     smoothRate_6 = 1.0;
 
     // Gamma
-    
+
     // OSC
     cell_gravity = Vec3f(0, 0, 0);
-    
-  // Import wav files for each planet
-  // planet_0
-  grainArray_0.load(fullPathOrDie("planet_0.wav").c_str());
-  // planet_1
-  grainArray_1.load(fullPathOrDie("planet_1.wav").c_str());
-  // planet_2
-  grainArray_2.load(fullPathOrDie("planet_2.wav").c_str());
-  // planet_3
-  grainArray_3.load(fullPathOrDie("planet_3.wav").c_str());
-  // planet_4
-  grainArray_4.load(fullPathOrDie("planet_4.wav").c_str());
-  // planet_5
-  grainArray_5.load(fullPathOrDie("planet_5.wav").c_str());
-  // planet_6
-  grainArray_6.load(fullPathOrDie("planet_6.wav").c_str());
 
-  ///////////////////////////////////////////////////////
-  // Visual
-  // Background space texture
-  if (!image.load(fullPathOrDie("back.jpg")))
-  {
-    fprintf(stderr, "FAIL\n");
-    exit(1);
+    // Import wav files for each planet
+    grainArray_0.load(fullPathOrDie("planet_0.wav").c_str()); // planet_0
+    grainArray_1.load(fullPathOrDie("planet_1.wav").c_str()); // planet_1
+    grainArray_2.load(fullPathOrDie("planet_2.wav").c_str()); // planet_2
+    grainArray_3.load(fullPathOrDie("planet_3.wav").c_str()); // planet_3
+    grainArray_4.load(fullPathOrDie("planet_4.wav").c_str()); // planet_4
+    grainArray_5.load(fullPathOrDie("planet_5.wav").c_str()); // planet_5
+    grainArray_6.load(fullPathOrDie("planet_6.wav").c_str()); // planet_6
+
+    ///////////////////////////////////////////////////////
+    // Visual
+    // Background space texture
+    if (!image.load(fullPathOrDie("back.jpg")))
+    {
+      fprintf(stderr, "FAIL\n");
+      exit(1);
     }
     backTexture.allocate(image.array());
 
@@ -272,8 +260,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
       p.quat() = Quatd(al::rnd::uniformS(), al::rnd::uniformS(),
                        al::rnd::uniformS(), al::rnd::uniformS());
       p.quat().normalize();
-      p.vector_to_comet = c.pos() - p.pos();
-      distance_to_comet[i] = p.vector_to_comet.mag();
+
       oss << "planet_" << i << ".jpg";
       string var = oss.str();
       if (!image.load(fullPathOrDie(var)))
@@ -296,122 +283,152 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
   void onAnimate(double dt)
   {
     timer += dt;
+    /////////////////
     // Granular synth
-  if (timer > 0.1) {
-      timer -= 0.1;
+    if (timer > 3)
+    {
+      timer -= 3;
 
       float begin, end;
-      int begintoend = 200;
+      int begintoend = 100;
+      float threshold = 0.125;
+      float r = pow(2, al::rnd::uniformS());
+      if (al::rnd::prob(0.3))  r *= -1;
+
       // Planet0
-      for (int t = 0; t < begintoend; t++) {
+      for (int t = 0; t < begintoend; t++)      {
         begin = al::rnd::uniform(grainArray_0.frames());
         end = al::rnd::uniform(grainArray_0.frames());
-        if (abs(begin - end) < begintoend*2) break;
-        if (abs(grainArray_0[int(begin)] - grainArray_0[int(end)]) < 0.125) break;  }
-      if (begin > end) {
+        if (abs(begin - end) < 200) break;
+        if (abs(grainArray_0[int(begin)] - grainArray_0[int(end)]) < threshold) break;
+      }
+      if (begin > end)
+      {
         float t = begin;
         begin = end;
-        end = t;  }
+        end = t;
+      }
+
       grainArray_0.min(begin);
       grainArray_0.max(end);
-      float r = pow(1, al::rnd::uniformS(2.0f));
-      if (al::rnd::prob(0.0)) r *= -1;
       smoothRate_0 = r;
       grainArray_0.reset();
+      r = pow(2, al::rnd::uniformS());
+      if (al::rnd::prob(0.3))  r *= -1;
+      
       // Planet1
-      for (int t = 0; t < begintoend; t++) {
+      for (int t = 0; t < begintoend; t++)      {
         begin = al::rnd::uniform(grainArray_1.frames());
         end = al::rnd::uniform(grainArray_1.frames());
-        if (abs(begin - end) < begintoend*2) break;
-        if (abs(grainArray_1[int(begin)] - grainArray_1[int(end)]) < 0.125) break;  }
-      if (begin > end) {
+        if (abs(begin - end) < 200) break;
+        if (abs(grainArray_1[int(begin)] - grainArray_1[int(end)]) < threshold) break;
+      }
+      if (begin > end)
+      {
         float t = begin;
         begin = end;
-        end = t;     }
+        end = t;
+      }
       grainArray_1.min(begin);
       grainArray_1.max(end);
-      r = pow(1, al::rnd::uniformS(2.0f));
-      if (al::rnd::prob(0.0)) r *= -1;
       smoothRate_1 = r;
       grainArray_1.reset();
+      r = pow(2, al::rnd::uniformS());
+      if (al::rnd::prob(0.3))  r *= -1;
+
       // Planet2
-      for (int t = 0; t < begintoend; t++) {
+      for (int t = 0; t < begintoend; t++)      {
         begin = al::rnd::uniform(grainArray_2.frames());
         end = al::rnd::uniform(grainArray_2.frames());
-        if (abs(begin - end) < begintoend*2) break;
-        if (abs(grainArray_2[int(begin)] - grainArray_2[int(end)]) < 0.125) break;    }
-      if (begin > end) {
+        if (abs(begin - end) < 200) break;
+        if (abs(grainArray_2[int(begin)] - grainArray_2[int(end)]) < threshold) break;
+      }
+      if (begin > end)
+      {
         float t = begin;
         begin = end;
-        end = t;      }
+        end = t;
+      }
       grainArray_2.min(begin);
       grainArray_2.max(end);
-      r = pow(1, al::rnd::uniformS(2.0f));
-      if (al::rnd::prob(0.0)) r *= -1;
       smoothRate_2 = r;
       grainArray_2.reset();
+      r = pow(2, al::rnd::uniformS());
+      if (al::rnd::prob(0.3))  r *= -1;
+
       // Planet3
-      for (int t = 0; t < begintoend; t++) {
+      for (int t = 0; t < begintoend; t++)      {
         begin = al::rnd::uniform(grainArray_3.frames());
         end = al::rnd::uniform(grainArray_3.frames());
-        if (abs(begin - end) < begintoend*2) break;
-        if (abs(grainArray_3[int(begin)] - grainArray_3[int(end)]) < 0.125) break;    }
-      if (begin > end) {
+        if (abs(begin - end) < 200) break;
+        if (abs(grainArray_3[int(begin)] - grainArray_3[int(end)]) < threshold) break;
+      }
+      if (begin > end)
+      {
         float t = begin;
         begin = end;
-        end = t;      }
+        end = t;
+      }
       grainArray_3.min(begin);
       grainArray_3.max(end);
-      r = pow(1, al::rnd::uniformS(2.0f));
-      if (al::rnd::prob(0.0)) r *= -1;
       smoothRate_3 = r;
       grainArray_3.reset();
+      r = pow(2, al::rnd::uniformS());
+      if (al::rnd::prob(0.3))  r *= -1;
+
       // Planet4
-      for (int t = 0; t < begintoend; t++) {
+      for (int t = 0; t < begintoend; t++)      {
         begin = al::rnd::uniform(grainArray_4.frames());
         end = al::rnd::uniform(grainArray_4.frames());
-        if (abs(begin - end) < begintoend*2) break;
-        if (abs(grainArray_4[int(begin)] - grainArray_4[int(end)]) < 0.125) break;    }
-      if (begin > end) {
+        if (abs(begin - end) < 200) break;
+        if (abs(grainArray_4[int(begin)] - grainArray_4[int(end)]) < threshold) break;
+      }
+      if (begin > end)
+      {
         float t = begin;
         begin = end;
-        end = t;      }
+        end = t;
+      }
       grainArray_4.min(begin);
       grainArray_4.max(end);
-      r = pow(1, al::rnd::uniformS(2.0f));
-      if (al::rnd::prob(0.0)) r *= -1;
       smoothRate_4 = r;
       grainArray_4.reset();
+      r = pow(2, al::rnd::uniformS());
+      if (al::rnd::prob(0.3))  r *= -1;
+
       // Planet5
-      for (int t = 0; t < begintoend; t++) {
+      for (int t = 0; t < begintoend; t++)      {
         begin = al::rnd::uniform(grainArray_5.frames());
         end = al::rnd::uniform(grainArray_5.frames());
-        if (abs(begin - end) < begintoend*2) break;
-        if (abs(grainArray_5[int(begin)] - grainArray_5[int(end)]) < 0.125) break;    }
-      if (begin > end) {
+        if (abs(begin - end) < 200) break;
+        if (abs(grainArray_5[int(begin)] - grainArray_5[int(end)]) < threshold) break;
+      }
+      if (begin > end)      {
         float t = begin;
         begin = end;
-        end = t;      }
+        end = t;
+      }
       grainArray_5.min(begin);
       grainArray_5.max(end);
-      r = pow(1, al::rnd::uniformS(2.0f));
-      if (al::rnd::prob(0.0)) r *= -1;
       smoothRate_5 = r;
       grainArray_5.reset();
+      r = pow(2, al::rnd::uniformS());
+      if (al::rnd::prob(0.3))  r *= -1;
+
       // Planet6
-      for (int t = 0; t < begintoend; t++) {
+      for (int t = 0; t < begintoend; t++)      {
         begin = al::rnd::uniform(grainArray_6.frames());
         end = al::rnd::uniform(grainArray_6.frames());
-        if (abs(begin - end) < begintoend*2) break;
-        if (abs(grainArray_6[int(begin)] - grainArray_6[int(end)]) < 0.125) break;      }
-      if (begin > end) {
+        if (abs(begin - end) < 200) break;
+        if (abs(grainArray_6[int(begin)] - grainArray_6[int(end)]) < threshold) break;
+      }
+      if (begin > end)      {
         float t = begin;
         begin = end;
-        end = t;      }
+        end = t;
+      }
       grainArray_6.min(begin);
       grainArray_6.max(end);
-      r = pow(1, al::rnd::uniformS(2.0f));
-      if (al::rnd::prob(0.0)) r *= -1;
       smoothRate_6 = r;
       grainArray_6.reset();
     }
@@ -424,6 +441,16 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     float d = v.mag();
     c.pos() += (v / d) * (10 - d);
 
+    // Relative position between the comet and planets
+    for (unsigned i = 0; i < 7; i++)
+    {
+      vector_to_comet[i] = c.pos() - state.planet_pose[i];
+      distance_to_comet[i] = vector_to_comet[i].mag();
+      float comet_head = atan(v.x / v.z);
+      angle_to_comet[i] = atan(abs(vector_to_comet[i].x / vector_to_comet[i].z - comet_head));
+    }
+    // cout << c.pos() << endl;
+
     // OSC control
     if (control < -0.5)
       nav().moveR(-0.03);
@@ -433,7 +460,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
       nav().moveR(0);
     // in any cases, comet goes forward
     if (control)
-      nav().moveF(0.05);
+      nav().moveF(0.10);
 
     if (azi_control < -0.5)
       nav().moveU(-0.02);
@@ -448,6 +475,8 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     state.navOrientation = nav().quat();
     // Comet
     state.comet_pose = c.pos();
+    state.comet_quat = c.quat();
+
     // Planets
     unsigned i = 0;
     for (auto &p : planetVect)
@@ -507,8 +536,6 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     control = cell_gravity.z;
     azi_control = cell_gravity.x;
     //  cout << azi_control << endl;
-    cout << fixed;
-    cout.precision(6);
   }
 
   ////////////////////////////
@@ -519,6 +546,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     while (io())
     {
       float tmp = 0;
+
       grainArray_0.rate(smoothRate_0());
       grainArray_1.rate(smoothRate_1());
       grainArray_2.rate(smoothRate_2());
@@ -526,13 +554,29 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
       grainArray_4.rate(smoothRate_4());
       grainArray_5.rate(smoothRate_5());
       grainArray_6.rate(smoothRate_6());
-      float sl = ( grainArray_0() + grainArray_1() + grainArray_2() )  / 3;
-      float sr = ( grainArray_3() + grainArray_4() + grainArray_5() + grainArray_6() ) / 4;
 
-      io.out(0) = sl * 0.5;
-      io.out(1) = sr * 0.5;
+  //     float sl = grainArray_0()*(1-2/M_PI*angle_to_comet[0]) *1/distance_to_comet[0] + grainArray_1()*(1-2/M_PI*angle_to_comet[1])*1/distance_to_comet[1] + grainArray_2()*(1-2/M_PI*angle_to_comet[2])*1/distance_to_comet[2] +  grainArray_3()*(1-2/M_PI*angle_to_comet[3])*1/distance_to_comet[3] + grainArray_4()*(1-2/M_PI*angle_to_comet[4])*1/distance_to_comet[4] + grainArray_5()*(1-2/M_PI*angle_to_comet[5])*1/distance_to_comet[5] + grainArray_6()*(1-2/M_PI*angle_to_comet[6]*1/distance_to_comet[6]);
+  //     float sr = grainArray_0()*2/M_PI*angle_to_comet[0]*1/distance_to_comet[0] + grainArray_1()*2/M_PI*angle_to_comet[1]*1/distance_to_comet[1] + grainArray_2()*2/M_PI*angle_to_comet[2]*1/distance_to_comet[2] +  grainArray_3()*2/M_PI*angle_to_comet[3]*1/distance_to_comet[3] + grainArray_4()*2/M_PI*angle_to_comet[4]*1/distance_to_comet[4] + grainArray_5()*2/M_PI*angle_to_comet[5]*1/distance_to_comet[5] + grainArray_6()*2/M_PI*angle_to_comet[6]*1/distance_to_comet[6];
+      float s0l = grainArray_0()*(1-2/M_PI*angle_to_comet[0]) *1/distance_to_comet[0];
+      float s0r = grainArray_0()*2/M_PI*angle_to_comet[0]*1/distance_to_comet[0] ;
+      float s1l = grainArray_1()*(1-2/M_PI*angle_to_comet[1])*1/distance_to_comet[1] ;
+      float s1r = grainArray_1()*2/M_PI*angle_to_comet[1]*1/distance_to_comet[1] ;
+      float s2l = grainArray_2()*(1-2/M_PI*angle_to_comet[2]) *1/distance_to_comet[2];
+      float s2r = grainArray_2()*2/M_PI*angle_to_comet[2]*1/distance_to_comet[2] ;
+      float s3l = grainArray_3()*(1-2/M_PI*angle_to_comet[3])*1/distance_to_comet[3] ;
+      float s3r = grainArray_3()*2/M_PI*angle_to_comet[3]*1/distance_to_comet[3] ;
+      float s4l = grainArray_4()*(1-2/M_PI*angle_to_comet[4])*1/distance_to_comet[4] ;
+      float s4r = grainArray_4()*2/M_PI*angle_to_comet[4]*1/distance_to_comet[4] ;
+      float s5l = grainArray_5()*(1-2/M_PI*angle_to_comet[5]) *1/distance_to_comet[5];
+      float s5r = grainArray_5()*2/M_PI*angle_to_comet[5]*1/distance_to_comet[5] ;
+      float s6l = grainArray_6()*(1-2/M_PI*angle_to_comet[6])*1/distance_to_comet[6]; 
+      float s6r = grainArray_6()*2/M_PI*angle_to_comet[6]*1/distance_to_comet[6]; 
+
+
+      io.out(0) = s0l + s1l + s2l + + s3l + s4l + s5l + s6l *1000;
+      io.out(1) = s0r + s1r + s2r + + s3r + s4r + s5r + s6r *1000;
       listener()->pose(nav());
-  //    scene()->render(io);
+      //    scene()->render(io);
     }
   }
   void onMessage(osc::Message &m)
