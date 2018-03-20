@@ -1,6 +1,6 @@
 
-// Ben . 2018.03.05. CeleSphere ver.0.01
-// Press t,f,g,h to control the Comet
+// Ben . 2018.03.20. CeleSphere ver.1.01
+// OSC controls the Comet
 
 /*  Copyright 2018 [Myungin Lee]
    Licensed under the Apache License, Version 2.0 (the "License");
