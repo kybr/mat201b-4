@@ -80,13 +80,13 @@ struct MyApp : OmniStereoGraphicsRenderer {
     }
     backTexture.allocate(image.array());
 
-    addSphereWithTexcoords(comet, 50);
+    addSphereWithTexcoords(comet, 10);
     addSphereWithTexcoords(backMesh, 999);
     addSphereWithTexcoords(planetMesh, 50);
-    addSphere(constellMesh, 0.05);
-    addSphere(dustMesh, 0.1);
-
-    //  dust.primitive(Graphics::POINTS);
+    addTetrahedron(dustMesh,0.05);
+    addTetrahedron(constellMesh,0.1);
+//    dustMesh.primitive(Graphics::POINTS);
+//    constellMesh.primitive(Graphics::POINTS);
 
     comet.generateNormals();
     backMesh.generateNormals();
@@ -132,7 +132,7 @@ struct MyApp : OmniStereoGraphicsRenderer {
    
    // comet 
     shader().uniform("COLOR", Color(1));
-    shader().uniform("texture", 1.0);
+    shader().uniform("texture", 0.9);
     shader().uniform("lighting", 0.1);
     /* */g.pushMatrix();
     g.translate(state.comet_pose);
@@ -180,7 +180,7 @@ struct MyApp : OmniStereoGraphicsRenderer {
   // Dusts & COnstellations
     shader().uniform("texture", 0.0);
     shader().uniform("lighting", 0.1);
-    shader().uniform("COLOR", Color(0));
+    shader().uniform("COLOR", Color(HSV(al::rnd::uniform() * M_PI, 0.1, 1)));
     for (int i = 0; i < dustCount; i++) {
       g.pushMatrix();
       g.translate(state.dust_pose[i]);
@@ -189,6 +189,8 @@ struct MyApp : OmniStereoGraphicsRenderer {
     }
     for (int i = 0; i < stellCount; i++) {
       g.pushMatrix();
+      g.pointSize(1);
+      g.blendAdd();
       g.translate(state.stell_pose[i]);
       g.draw(constellMesh);
       g.popMatrix();

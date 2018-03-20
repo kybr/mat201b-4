@@ -208,8 +208,8 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
 
     addSphereWithTexcoords(backMesh, 999);
     addSphere(planetMesh, 50);
-    addSphere(constellMesh, 0.05);
-    addSphere(dustMesh, 0.1);
+    addTetrahedron(constellMesh, 0.05);
+    addTetrahedron(dustMesh, 0.1);
 
     //  dust.primitive(Graphics::POINTS);
 
@@ -243,13 +243,13 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     for (auto &s : constellVect)
     {
       s.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
-      s.pos() *= al::rnd::uniform(10.0, 300.0) * (int(rand() % 2) * 2 - 1);
+      s.pos() *= al::rnd::uniform(30.0, 500.0) * (int(rand() % 2) * 2 - 1);
     }
 
     for (auto &du : dustVect)
     {
       du.pos(al::rnd::uniformS(), al::rnd::uniformS(), al::rnd::uniformS());
-      du.pos() *= al::rnd::uniform(10.0, 300.0) * (int(rand() % 2) * 2 - 1);
+      du.pos() *= al::rnd::uniform(30.0, 500.0) * (int(rand() % 2) * 2 - 1);
     }
     int i = 0;
     char str[128];
