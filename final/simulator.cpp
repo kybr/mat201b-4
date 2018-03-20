@@ -448,7 +448,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
       vector_to_comet[i] = c.pos() - state.planet_pose[i];
       distance_to_comet[i] = vector_to_comet[i].mag();
       float comet_head = atan(v.x / v.z);
-      angle_to_comet[i] = atan(abs(vector_to_comet[i].x / vector_to_comet[i].z - comet_head));
+      angle_to_comet[i] = atan((vector_to_comet[i].x / vector_to_comet[i].z - comet_head));
     }
     // cout << c.pos() << endl;
 
