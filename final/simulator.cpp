@@ -285,9 +285,10 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient
     timer += dt;
     /////////////////
     // Granular synth
-    if (timer > 3)
+    if (timer > cell_gravity.x + 2.5)
     {
-      timer -= 3;
+      timer -= cell_gravity.x + 2.5;
+
 
       float begin, end;
       int begintoend = 100;
